@@ -1,0 +1,1669 @@
+<!DOCTYPE HTML>
+<html>
+    <meta charset="UTF-8">
+<head>
+<!--
+   ----------------------------------------------------------------------------
+  
+   ------------------------------- Truffle Hunt -------------------------------
+  
+   ----------------------------------------------------------------------------
+  
+   Name    : Truffle Hunt
+   Version : 2.5
+   Purpose : Provides framework for programming an agent to assist in Truffle
+             Hunt.  Truffle Hunt is remarkably similar to Minesweeper (rules
+             explained below).
+   Uses    : TruffleClassLibrary
+             This provides the grid with hidden truffles and allows the user
+             to probe the grid without revealing its contents directly.
+  
+   Author  : Jeffrey L. Popyack
+   Date    : July 2006
+   Modified: Nov 2006 -- added pattern matching for rules
+   Modified: Nov 2008 -- added "Auto Boar" checkbox and time delay
+   Modified: Nov 2010 -- added "using System.Collections" (needed for ArrayList)
+                      -- added "form.focus()" inside agentAnalysis loop, so that
+                         focus is restored to form after scrollbar appears in 
+                         outputBox (which happens when a long streak of "autoBoar"
+                         actions occur in one move).
+                         added code to scroll to end when text enters 
+                         agentOutputBox.
+   Modified: Nov 2011 -- still giving "object not found error" occasionally. 
+                         Added "moveCount" to agentAnalysis for debugging, 
+                         removed previously added "form.focus()",
+                         and errors no longer occurring.
+   Modified: Nov 2015 -- ported to HTML5/JavaScript.  A major rewrite.  
+						 Using one grid rather than two.
+   Modified: Nov 2017 -- added detection of ctrl key depressed, because Google
+                         Chrome does not recognize "ctrl-click" and "right-click" as
+                         equivalent.
+   Modified: Mar 2018 -- fixed handling of "m" in input pattern.
+                         fixed nesting of "Your guess is as good as mine" statement.
+                         stopped autoBoar after game over.
+                         stopped reporting contents when marker removed.
+                         use cell names uniformly throughout (i.e., A4, not (4,0))
+                         allow commenting in rules (only first 9 characters read)
+                         removed old commented code
+   Modified: Oct 2024 -- Revised doFirstClick so that the first click always
+                         produces a 0.
+                         Added pattern and action display areas beneath grid.
+                         Added better rule validation.
+                         
+
+   ----------------------------------------------------------------------------
+-->
+    <title>Truffle Hunt</title>
+	<style>
+	body {
+		margin-left: 30px;
+		margin-top: 5px;
+		padding: 0px;
+		font-family: Arial; 
+		}
+	textarea {
+		font-size: 12px;
+		}
+	.headerlabel {
+			border: 2px solid #F88; 
+			margin: 20px;
+			padding-left: 8px;
+			padding-top: 6px ;
+			padding-bottom: 6px ;
+			font-family: Arial;
+			font-weight: bolder; // bold;
+			color: #FFFFCC; 
+			background-color: darkseagreen;
+			font-size: 24px;
+			text-transform: none;
+			display: table-cell;
+			height: 30px;
+			width: 900px;
+			vertical-align: middle;
+			border-radius: 15px;	
+		}
+	 </style>
+
+	<script LANGUAGE="JavaScript" TYPE="text/javascript">
+		// ---------------------------------------------------------------------
+		// GLOBAL CONSTANTS
+		// ---------------------------------------------------------------------
+		
+			var DEVELOPER_MODE = false ;
+			var RULEMAKER_MODE = false ;
+			var SOLO_MODE      = false ;
+			var DEVELOPER_RUN  = false ; 
+			var Top=0, left=0, bottom=300, right=300;
+// 			var xTop=400, xleft=0, xbottom=xTop+90, xright=xleft+90;
+			var xTop=Top, xleft=0, xbottom=xTop+90, xright=xleft+90;
+	
+			var GRIDSIZE = 10 ;
+			var MAX_TRUFFLES = GRIDSIZE ;
+			var dh = (right-left)/GRIDSIZE;
+			var dv = (bottom-Top)/GRIDSIZE;
+	
+			var GRIDLINE_THICKNESS = 1 ;
+			var RULES ;
+		
+		// ---------------------------------------------------------------------
+		// GLOBAL VARIABLES
+		// ---------------------------------------------------------------------
+			var ROW,COL ;           // used in doMouseDown(e), doFirstClick()
+			var firstClick=true ;
+			var gameOver = false ;
+			var autoBoar = false ;
+			
+		// =====================================================================
+		// ------------------------- CLASS DEFINITION -------------------------- 
+		// =====================================================================
+		
+		// ---------------------------------------------------------------------
+		// The grid is an array2D of Elements.  Each element has these attributes:
+		//   val    : number of truffles in its neighbor cells
+		//   visible: whether the value has been revealed to the user
+		//   truffle: whether the cell contains a truffle
+		//   marked : whether the user has marked the cell as containing a truffle
+		//            (the user may have marked it incorrectly)
+		//   name   : name shown on the display , e.g., grid[4][1] is B4.
+		//
+		// The pattern and action display areas are also array2D of Elements.
+		// CellStyle of these areas differs from the grid CellStyle.
+		// ---------------------------------------------------------------------
+			
+		function array2D(numRows,numCols)
+		{
+			var arr = new Array(numRows) ;
+			for(var i=0; i<arr.length; i++)
+			{
+				arr[i] = new Array(numCols) ;
+				for(var j=0; j<arr[i].length; j++)
+					arr[i][j] = new Element(0,false,false,false,                 // was -1
+					                String.fromCharCode("A".charCodeAt(0)+j)+i) ;
+			}
+			return arr ;
+		}
+	
+			function Element(val,visible,truffle,marked,name)
+			{
+				this.val = val ;
+				this.visible = visible ;
+				this.truffle = truffle ;
+				this.marked = marked ;
+				this.name = name ;
+			}
+			
+			function CellStyle(fillColor,emptyColor,lineColor,markedColor,
+							   digitColor,zeroColor,explodedColor)
+			{
+				this.fillColor = fillColor ;
+				this.emptyColor = emptyColor ;
+				this.lineColor = lineColor ;
+				this.markedColor = markedColor ;
+				this.digitColor = digitColor ;
+				this.zeroColor = zeroColor ;
+				this.explodedColor = explodedColor ;
+			}
+			
+		// =====================================================================
+		// ----------------------- END CLASS DEFINITION -----------------------
+		// =====================================================================
+	 
+	 
+		// =====================================================================
+		// -------------------- BINARY/DECIMAL/HEX ROUTINES --------------------
+		// =====================================================================
+	
+		function Bin2Hex(binstr)
+		{
+		//----------------------------------------------------------------------
+		// Convert binary string to hex, 4 bits at a time.
+		// Assumes string length is a multiple of 4.
+		//----------------------------------------------------------------------
+			var hexstr = "" ;
+			while(binstr != "")
+			{
+				var susbtr = binstr.substr(0,4) ;
+				hexstr += parseInt(susbtr,2).toString(16).toUpperCase() ;
+				binstr = binstr.substr(4,binstr.length-4) ;
+			}
+			return hexstr ;
+		}
+		
+		function Hex2Bin(hexstr)
+		{
+		//----------------------------------------------------------------------
+		// Convert hex string to binary, 1 hex byte at a time.
+		//----------------------------------------------------------------------
+			var binstr = "" ;
+			while(hexstr != "")
+			{
+				var susbtr = hexstr.substr(0,1) ;
+				binstr += parseInt(susbtr,16).toString(2).padStart(4,'0') ;
+				hexstr = hexstr.substr(1,hexstr.length-1) ;
+			}
+			return binstr ;
+		}
+
+			
+		// =====================================================================
+		// -------------------END BINARY/DECIMAL/HEX ROUTINES ------------------
+		// =====================================================================
+
+		
+		function countNeighbors(grid,row,col)
+		{
+		// ---------------------------------------------------------------------
+		// Count the number of neighbors surrounding grid[row][col] that 
+		// contain truffles.
+		// ---------------------------------------------------------------------
+			var nRows = grid.length ;
+			var nCols = grid[0].length ;
+
+			var count=0 ;
+			for(var i=row-1; i<=row+1; i++)
+				if(i>=0 && i<nRows)
+					for(var j=col-1; j<=col+1; j++)
+						if(j>=0 && j<nCols)
+							if(i!=row || j!=col)
+								if(grid[i][j].truffle)
+									count++ ;
+			return count ;
+		}
+
+		function transcript(message)
+		{
+		// ---------------------------------------------------------------------
+		// Add a message to the transcript ("Truffle-Sniffing Boar Says") area.
+		// ---------------------------------------------------------------------
+			
+			var theForm = document.getElementById("transcriptArea") ;
+			theForm.value += message + "\n" ;
+			theForm.scrollTop = theForm.scrollHeight ;
+		}
+		
+		function doFirstClick(grid,row,col)
+		{
+		// ---------------------------------------------------------------------
+		// On first click, we guarantee none of the MAX_TRUFFLES truffles are in 
+		// the position just clicked, or in any of its neighbors.  That is, the
+		// first click is guaranteed to return a 0.
+		// ---------------------------------------------------------------------
+			document.getElementById("runButton").disabled = true ;
+
+			var str = document.getElementById("gridstring").value ;
+			// ---------------------------------------------------------------------
+			// When in DEVELOPER_MODE, the user has the opportunity to enter a 
+			// string depicting the "first click" location and  grid configuration
+			// of a previously played game.
+			// ---------------------------------------------------------------------
+			if( str != "" )
+			{
+			// ---------------------------------------------------------------------
+			// Benchmark configurations:
+			// B7:0010052004A80000000000060  -- first 4 marks 5; complex marks 8
+			// H5:01000000200041000001A2060  -- first 4 marks 6; complex solves
+			// C2:2000100010004A40080400010  -- first 4 marks 4; complex marks 5
+			// E4:0180400008002038003000000	 -- first 4 marks 6; complex marks 9
+			// D6:021001A200100040180000000  -- first 4 marks 2; complex marks 9
+			// H4:2000008000003A10800002001  -- first 4 marks 3; complex solves
+			// D4:300003300001000008000A000  -- first 4 marks 3; complex solves
+			// J2:300003300001000008000A000  -- first 4 marks 1; complex solves
+			// F3:0041010000000082C88200000  -- first 4 marks 7; complex solves
+			// ---------------------------------------------------------------------
+			
+				if( DEVELOPER_RUN )
+				{
+				// ---------------------------------------------------------------------
+				// If in DEVELOPER MODE, the user may have entered a configuration,
+				// but we only probe at the preset row and column if the Run button
+				// has been clicked, not if a place in the grid has been clicked.
+				// ---------------------------------------------------------------------
+					ROW = str.charCodeAt(1) - "0".charCodeAt(0) ;
+					COL = str.charCodeAt(0) - "A".charCodeAt(0) ;
+				}
+				var binstr = Hex2Bin( str.substr(3,str.length-3) ) ;
+// 				document.getElementById("gridstring").value += "\n" + binstr ;
+
+				var index = 0 ;
+				for(var i=0; i<grid.length; i++)
+					for(var j=0; j<grid[i].length; j++)
+					{
+						grid[i][j].val = (binstr[index] == "1") ? -1 : 0 ;
+						grid[i][j].truffle = ( grid[i][j].val != 0 ) ;
+						index++ ;
+					}
+			}
+			else
+			{
+				// ---------------------------------------------------------------------
+				// Temporarily insert a truffle in each of the 9 cells surrounding (and 
+				// including) the cell that was clicked, i.e., grid[row][col] .
+				// Note that if this cell is close to a boundary, there will be fewer
+				// than 8 surrounding cells.
+				// ---------------------------------------------------------------------
+			
+				for(var m=row-1; m<=row+1; m++)
+				{
+					for(var n=col-1; n<=col+1; n++)
+					{
+						// ----------------------------------------------------
+						// Don't access the cell if it is close to a boundary.
+						// ----------------------------------------------------
+						if( m>=0 && m<GRIDSIZE && n>=0 && n<GRIDSIZE )
+							grid[m][n].truffle = true ; 
+					}
+				}
+			
+				// ---------------------------------------------------------------------
+				// Randomly insert truffles in spaces not already containing a truffle,
+				// for a total of MAX_TRUFFLES "permanent" truffles. 
+				// ---------------------------------------------------------------------
+			
+				for(var i=0; i<MAX_TRUFFLES; i++)
+				{
+					var m, n;
+					do
+					{
+						m = Math.floor( GRIDSIZE*Math.random() ) ;
+						n = Math.floor( GRIDSIZE*Math.random() ) ;
+					} while(grid[m][n].truffle);
+					grid[m][n].truffle = true ;
+					grid[m][n].val = -1 ;
+				}
+			
+				// ---------------------------------------------------------------------
+				// Remove the truffles temporarily inserted above. 
+				// ---------------------------------------------------------------------
+			
+				for(var m=row-1; m<=row+1; m++)
+				{
+					for(var n=col-1; n<=col+1; n++)
+					{
+						// ----------------------------------------------------
+						// Don't access the cell if it is close to a boundary.
+						// ----------------------------------------------------
+						if( m>=0 && m<GRIDSIZE && n>=0 && n<GRIDSIZE )
+							grid[m][n].truffle = false ; 
+					}
+				}
+			
+				// ---------------------------------------------------------------------
+				// Store the "first click" location and  grid configuration in the
+				// gridstring text box, which is visible in DEVELOPER MODE.
+				// ---------------------------------------------------------------------
+				str = pack(grid) ;
+				document.getElementById("gridstring").value = grid[row][col].name + ":" 
+				+ Bin2Hex(str);
+			}	  
+			
+			// ---------------------------------------------------------------------
+			// For each cell grid[i][j] in the grid, count the number of truffles 
+			// in neighboring cells, and store this value in grid[i][j].val .  
+			// This number does not change during the session.
+			// ---------------------------------------------------------------------
+		
+			for(var i=0; i<grid.length; i++)
+				for(var j=0; j<grid[i].length; j++)
+					if(!(grid[i][j].truffle))
+							grid[i][j].val = countNeighbors(grid,i,j) ;
+		}
+		
+		
+		function rotateRight(matrix)
+		{
+		// ---------------------------------------------------------------------
+		// Returns a grid with elements found by rotating matrix clockwise.
+		// ---------------------------------------------------------------------
+
+			var nRows = matrix.length ;
+			var nCols = matrix[0].length ;
+			
+			var mR = new array2D(nRows,nCols) ;
+			for(var i=0; i<nRows; i++)
+				for(var j=0; j<nCols; j++)
+					mR[i][j] = matrix[nCols-1-j][i] ;
+			return mR ;
+		}
+		
+		function unpack(patternString)
+		{
+		// ---------------------------------------------------------------------
+		// Converts a string of n^2 elements into an nxn matrix.
+		// ---------------------------------------------------------------------
+			
+			// ---------------------------------------------------------------------
+			// Figure out dimensions of matrix.
+			// ---------------------------------------------------------------------
+			var gridSize = Math.floor( Math.sqrt( patternString.length ) + 0.5 ) ;
+			if( patternString.length != gridSize*gridSize )
+				alert("Warning: string length is " + patternString.length 
+				      + ", incorrect size.") ;
+				      
+			var matrix = new array2D(gridSize,gridSize) ;
+			var index=0 ;
+			for(var i=0; i<gridSize; i++)
+			{
+				for(var j=0; j<gridSize; j++)
+				{
+ 					matrix[i][j] = new Element(patternString[index],true,false,false,
+ 					                   String.fromCharCode("P".charCodeAt(0)+i)+j) ;
+					index++ ;
+				}
+			}
+			return matrix ;
+		}
+			
+		function pack(matrix)
+		{
+		// ---------------------------------------------------------------------
+		// Converts an mxn grid into a string of mxn elements.
+		// ---------------------------------------------------------------------
+
+			var str = "" ;
+			
+			for(var i=0; i<matrix.length; i++)
+			{
+				for(var j=0; j<matrix[i].length; j++)
+				{
+ 					str += (-matrix[i][j].val) ;
+				}
+			}
+			return str ;
+		}
+			
+		
+		function matching(grid, row, col, pattern) // returns bool
+		{
+		// ---------------------------------------------------------------------
+		// Checks whether pattern matches 3x3 grid centered at grid.cell[row,col]
+		// ---------------------------------------------------------------------
+
+			var isMatch = true ;
+			for(var m=-1; isMatch && m<=1; m++)
+			{
+				for(var n=-1; isMatch && n<=1; n++)
+				{
+					var token = pattern[m+1][n+1].val ;
+					if( row+m<0 || row+m>=GRIDSIZE )  // row out of bounds
+						isMatch = token=="?" || token=="n" 
+						       || token=="N" ;  
+					else if( col+n<0 || col+n>=GRIDSIZE )  // col out of bounds
+						isMatch = token=="?" || token=="n" 
+						       || token=="N" ;  
+					else if( token=="?" )  // anything
+						isMatch = true ;
+					else if( token=="m" )   // marked 
+						isMatch = grid[row+m][col+n].marked ;       
+					else if( token=="-" )  // unexplored
+						isMatch = !(grid[row+m][col+n].visible) ;
+					else if( token=="n" )  // a visible digit >=0
+						isMatch = (grid[row+m][col+n].visible 
+						        && grid[row+m][col+n].val>=0
+						        && grid[row+m][col+n].val<9) ;
+					else if( token=="N" )  // a visible digit >0
+						isMatch = (grid[row+m][col+n].visible 
+						        && grid[row+m][col+n].val>0 
+						        && grid[row+m][col+n].val<9) ;
+					else // specific number 0..8
+						isMatch = grid[row+m][col+n].visible 
+						      && (grid[row+m][col+n].val == token) ;
+				}
+			}
+
+			return isMatch ;
+		}
+		
+		function displayMove(grid, row, col, pattern, action)
+		{
+		// ---------------------------------------------------------------------
+		// Show current subgrid being checked, along with pattern and action
+		// ---------------------------------------------------------------------
+
+			var numrows = Math.min(row+2,GRIDSIZE-row+1,3) ;
+			var numcols = Math.min(col+2,GRIDSIZE-col+1,3) ;
+			var firstrow = Math.max(row-1,0) ;
+			var firstcol = Math.max(col-1,0) ;
+			
+			var subgrid = new array2D(numrows,numcols) ;
+			
+ 			var rownumbers = "" ;
+
+			for(var m=0; m<numrows; m++)
+			{
+			// -------------------------------------------------------------
+			// row numbers printed to left of subgrid
+			// -------------------------------------------------------------
+				var rownum = String.fromCharCode("0".charCodeAt(0)+firstrow+m) ;			    
+			    rownumbers += rownum + "<br />" ;
+			}
+
+ 			var columnlabels = "    " ;
+			for(var n=0; n<numcols; n++)
+			{
+			// -------------------------------------------------------------
+			// column labels printed above subgrid
+			// -------------------------------------------------------------
+				var column = String.fromCharCode("A".charCodeAt(0)+firstcol+n) ;			
+			    columnlabels += column + " " ;
+			}
+			    
+			for(var m=0; m<numrows; m++)
+			{
+				for(var n=0; n<numcols; n++)
+				{
+					subgrid[m][n] = grid[firstrow+m][firstcol+n] ;
+				}
+			}
+			
+			document.getElementById("subgridheader").innerHTML = columnlabels ;
+			document.getElementById("subgridrownum").innerHTML = rownumbers ;
+
+			fillGrid(canvas2B,patternStyle,pattern) ; 
+			drawGrid(canvas2B,patternStyle,xTop,xleft,xbottom,xright,dh,dv) ;
+			
+			fillGrid(canvas2A,gridStyle,subgrid) ;
+			drawGrid(canvas2A,gridStyle,xTop,xleft,
+				xTop+subgrid.length*dv,subgrid[0].length*dh,
+				dh,dv) ;
+
+			fillGrid(canvas2C,patternStyle,action) ;
+			drawGrid(canvas2C,patternStyle,xTop,xleft,xbottom,xright,dh,dv) ;
+
+		}
+		
+		function apply(grid, row, col, pattern, action)
+		{
+		// ---------------------------------------------------------------------
+		// Apply given action to subgrid centered at grid[row][col]
+		// ---------------------------------------------------------------------
+
+			displayMove(grid, row, col, pattern, action);
+			
+			for(var m=-1; m<=1; m++)
+			{
+				for(var n=-1; n<=1; n++)
+				{
+					if( action[m+1][n+1].val=="P" )
+					{
+						probe("I",grid,row+m,col+n) ;
+						return ;
+					}
+		
+					if( action[m+1][n+1].val=="M" )
+					{
+						placeMarker("I",grid,row+m,col+n) ;
+						return ;
+					}
+				}
+			}
+		}
+		
+		function rulesAreValid()
+		{
+		// ---------------------------------------------------------------------
+		// Error checking for rules provided by user in Rule Center
+		// ---------------------------------------------------------------------
+
+			var LEGAL_PATTERN_CHARS = "012345678Nn-?m" ;
+			var LEGAL_ACTION_CHARS  = "?PM" ;
+			
+			// ---------------------------------------------------------------------
+			// Check rules entered by user for validity.
+			// The following errors are caught:
+			//    Odd number of lines entered (rules are pattern/action pairs)
+			//    Blank lines not allowed
+			//    Line lengths not equal to 9
+			//       some exceptions are allowed: 
+			//          comments (following //) are permitted at the end of the line
+			//          spaces are trimmed from beginning and end after comments
+			//             are removed
+			//    Illegal characters in either pattern or action string
+			// ---------------------------------------------------------------------
+			
+			// ---------------------------------------------------------------------
+			// Retrieve rule list from user
+			// ---------------------------------------------------------------------
+			RULES = document.getElementById("ruleList").value ;
+			  
+			// ---------------------------------------------------------------------
+			// Remove spurious spaces before or after rules
+			// ---------------------------------------------------------------------
+			RULES = RULES.trim() ;
+			
+			// ---------------------------------------------------------------------
+			// Convert text into array of lines 
+			// ---------------------------------------------------------------------
+
+			RULES = RULES.split("\n") ; 
+			
+			
+			// ---------------------------------------------------------------------
+			// Begin transcript of all errors detected in rule list
+			// ---------------------------------------------------------------------
+
+			var errors = "" ;    
+			
+			// ---------------------------------------------------------------------
+			// A rule must contain 2 lines (a pattern and an action)		
+			// ---------------------------------------------------------------------
+
+			var numRules = RULES.length/2 ; 
+			if( RULES.length%2 != 0)
+				errors += "*  Uneven number of lines in (pattern,action) pairs, " 
+				       + RULES.length + " lines found.\n";
+							
+			// ---------------------------------------------------------------------
+			// Examine rules, line by line		
+			// ---------------------------------------------------------------------
+
+			for(var i=0; i<RULES.length; i++)
+			{
+				// ---------------------------------------------------------------------
+				// Remove comment from end of line, if any
+				// ---------------------------------------------------------------------
+
+				var commentPos = RULES[i].search("//") ;  
+				if( commentPos >= 0 )
+					RULES[i] = RULES[i].substr(0,commentPos);
+					
+				// ---------------------------------------------------------------------
+				// Remove blanks from beginning and end of text, if any
+				// ---------------------------------------------------------------------
+
+				RULES[i] = RULES[i].trim() ;  
+				
+				// ---------------------------------------------------------------------
+				// Blank lines are not allowed
+				// ---------------------------------------------------------------------
+
+				if( RULES[i].length==0 )
+					errors += "*  Blank line found in rule list\n" ;
+					
+				// ---------------------------------------------------------------------
+				// The remaining rule must contain 9 characters
+				// ---------------------------------------------------------------------
+
+				else if( RULES[i].length != 9 )  
+					errors += "*  \"" + RULES[i] + "\" should contain 9 characters, " 
+					       + RULES[i].length + " found.\n" ;
+					
+				// ---------------------------------------------------------------------
+				// Rule must contain legal characters, which differ for 
+				// Patterns and Actions
+				// ---------------------------------------------------------------------
+
+				var badchars = "" ; 
+				var temp = "" ;
+				if( i%2 == 0 )  // this is a pattern string
+				{
+					temp = "Pattern " ;
+					for(let ch of RULES[i])
+						if( !( LEGAL_PATTERN_CHARS.includes(ch) ))
+							badchars += ch ;						
+				}
+				else  // this is an action string
+				{
+					temp = "Action "
+					for(let ch of RULES[i])
+						if( !( LEGAL_ACTION_CHARS.includes(ch) ))
+							badchars += ch ;						
+				}
+				var suffix = ( badchars.length > 1) ? "s" : "" ;
+				if( badchars.length>0 )
+					errors += "*  Illegal character" + suffix + " \"" + badchars 
+					        + "\" found in " + temp + "\"" + RULES[i] + "\n" ;
+			}
+			
+			// ---------------------------------------------------------------------
+			// Alert user about all errors discovered in rule list
+			// ---------------------------------------------------------------------
+
+			suffix = ( errors.length > 1) ? "S" : "" ;
+			if( errors.length>0 )
+//				alert("ERROR" + suffix + "!\n"+ errors) ;
+				transcript("ERROR" + suffix + "!\n"+ errors) ;
+		
+			return ( errors.length==0 ) ;
+
+		}
+			
+		function makeRule()
+		{
+		// ---------------------------------------------------------------------
+		// In RULEMAKER_MODE, check if Pattern and Action entered by user have
+		// appropriate syntax.  If so, apply Pattern and Action to subgrid.
+		// If not, alert user with error messages.
+		// ---------------------------------------------------------------------
+		
+			var SUBGRIDSIZE = 3 ;
+			var subgrid = new array2D(SUBGRIDSIZE,SUBGRIDSIZE) ;
+			var patternString = "" ;
+			var actionString  = "" ;
+			
+			document.getElementById("transcriptArea").value = "" ; // reset transcript to empty
+			
+			for(var row=0; row<subgrid.length; row++)
+			{
+				var rowname = String.fromCharCode("0".charCodeAt(0)+row) ;
+				
+				for(var col=0; col<subgrid[row].length; col++)
+				{
+					var colname = String.fromCharCode("0".charCodeAt(0)+col) ;
+					subgrid[row][col].val = document.getElementById("SGR"+rowname+colname).value ;
+					subgrid[row][col].visible = ( subgrid[row][col].val != "" )
+					
+					// an m/M in the subgrid indicates a marker
+					subgrid[row][col].marked  = ( subgrid[row][col].val.toUpperCase() == "M" )
+// 					if( subgrid[row][col].marked )
+						
+					
+					patternString += document.getElementById("PAT"+rowname+colname).value ;
+					actionString  += document.getElementById("ACT"+rowname+colname).value ;
+				}
+			}
+			document.getElementById("ruleList").value = patternString +"\n" + actionString ;
+			
+			var pattern = unpack(patternString) ;
+			var action  = unpack(actionString) ;
+			
+			if( rulesAreValid() )
+			{
+				transcript("Pattern and Action have valid form.") 
+				if (matching(subgrid, 1, 1, pattern))
+				{
+					transcript("Pattern matches Test Grid.") 
+					apply(subgrid, 1, 1, pattern, action);
+					transcript("Action applied to Test Grid.") 
+				}
+				else
+					transcript("Pattern does not match Test Grid.") 
+				
+			}
+		}
+		
+		function agentAnalysis(moveCount,grid,row,col)
+		{
+		// ---------------------------------------------------------------------
+		// This routine provides an agent's analysis of the current board,
+		// and makes a move if one is acceptable.
+		//
+		// It should not be possible for this routine to be called if there
+		// are errors in the rule list.
+		//
+		// The contents of grid[i][j] contain the visible grid display,
+		// Each cell will contain one of the following values:
+		//   -1 if it has not been probed
+		//    n (a non-negative number) if it has been probed and found to
+		//      have n neighbors that are truffles.
+		//   Furthermore, 
+		//      grid[i][j].marked  will be true if the user has 
+		//                         placed a marker on the cell.
+		//      grid[i][j].visible will be true if the user has either
+		//                         probed or marked the cell.
+		//      grid[i][j].truffle will be true if there is actually a 
+		//                         truffle in the cell (unknown to user) 
+		// ---------------------------------------------------------------------
+		
+			// ---------------------------------------------------------------------
+			// The position of the boar has temporarily been drawn on the grid.
+			// Restore the grid (i.e., remove the mark showing the boar's position.)
+			// ---------------------------------------------------------------------
+
+			var context = canvas.getContext("2d");
+			context.restore() ;
+
+			if(gameOver) 
+				return ;
+			
+			if(moveCount==0)  
+			{
+				// ---------------------------------------------------------------------
+				// This check ensures that autoBoar does not keep printing
+				// the same message.
+				// ---------------------------------------------------------------------
+		
+				if(grid[row][col].marked)
+					transcript("Ooohh... you marked " + grid[row][col].name
+					          + "!  Can I try it?") ;
+					          
+				// ---------------------------------------------------------------------
+				// If not visible, marker has just been removed
+				// ---------------------------------------------------------------------
+				else if(grid[row][col].visible)
+					transcript("Ooohh... you probed " + grid[row][col].name
+					          +" and it is near " 
+					          + grid[row][col].val
+					          + " Truffle"
+					          + (grid[row][col].val==1 ? "" : "s")
+					          + "!") ;
+			}
+		
+			// ---------------------------------------------------------------------
+			//  Given a pattern "abcdefghi" which corresponds to the 3x3 matrix
+			//    a b c
+			//    d e f
+			//    g h i
+			//  The possible values are:
+			//    0-8 meaning the specific value 0-8
+			//    N   means any nonzero digit
+			//    n   means any digit, including 0 (i.e. the cell is empty)
+			//    -   means blank (unexplored)
+			//    ?   matches any character - including "out of bounds"
+			//    m   means "MARKED"
+			//  
+			//    ?   appears in the "action pattern", meaning leave cell as is
+			//    P   appears in the "action pattern", showing which cell to probe
+			//    M   appears in the "action pattern", showing which cell to mark
+			// ---------------------------------------------------------------------
+			
+			// ---------------------------------------------------------------------
+			// Error checking for rules is not done here because it has already
+			// been done when the user first clicked a cell in the grid.
+			// ---------------------------------------------------------------------
+			var numRules = RULES.length/2 ; // a rule is defined by 2 lines
+		
+			var moveFound;
+			var probeRow, probeCol ;
+			
+			var patternString = new Array(numRules) ;
+			var actionString  = new Array(numRules) ;
+			var j = 0 ;
+			for(var i=0; i<numRules; i++)
+			{
+				patternString[i] = RULES[j] ;
+				j++ ;
+				actionString[i] = RULES[j] ;
+				j++ ;
+			}
+			
+			moveFound = false;
+			
+			for (var k = 0; !moveFound && k < patternString.length; k++)
+			{
+				var pat1, pat1R, pat2R, pat3R ;
+				var act1, act1R, act1R, act3R ;
+				pat1 = unpack(patternString[k]) ;
+				pat1R = rotateRight(pat1) ;
+				pat2R = rotateRight(pat1R) ;
+				pat3R = rotateRight(pat2R) ;
+				act1 = unpack(actionString[k]) ;
+				act1R = rotateRight(act1) ;
+				act2R = rotateRight(act1R) ;
+				act3R = rotateRight(act2R) ;
+
+				for (var i = 0; !moveFound && i < grid.length ; i++)
+				{
+					for (var j = 0; !moveFound && j < grid[i].length; j++)
+					{
+						if (matching(grid,i, j, pat1))
+						{
+							apply(grid, i, j, pat1, act1);
+							moveFound = true;
+						}
+						else if (matching(grid, i, j, pat1R))
+						{
+							apply(grid, i, j, pat1R, act1R);
+							moveFound = true;
+						}
+						else if (matching(grid,i, j, pat2R))
+						{
+							apply(grid, i, j, pat2R, act2R);
+							moveFound = true;
+						}
+						else if (matching(grid,i, j, pat3R))
+						{
+							apply(grid, i, j, pat3R, act3R);
+							moveFound = true;
+						}
+						if(moveFound)
+						{
+							probeRow = i ;
+							probeCol = j ;
+						}
+					}
+				}
+			}  
+			
+			if (moveFound && !gameOver)  
+			{
+				moveCount++;
+				if(autoBoar)
+					setTimeout("agentAnalysis("+moveCount+",grid,"
+					        + probeRow + "," + probeCol + ")", 250) ;
+			}
+			else if (!gameOver)  
+			{
+				transcript("Your guess is as good as mine!\n");
+				var stats = "Markers: " + document.getElementById("markerStatus").innerText ;
+				document.getElementById("gridstring").value += "\nSTOPPED" + "\n" + stats ;
+			}
+
+			// ---------------------------------------------------------------------
+			// Now that a move has been applied, update the grid:
+			// ---------------------------------------------------------------------
+
+			fillGrid(canvas,gridStyle,grid);  
+			drawGrid(canvas,gridStyle,Top,left,bottom,right,dh,dv) ;
+			checkForWin(canvas,grid)
+
+			// ---------------------------------------------------------------------
+			// Draw a 3x3 square on the grid showing position currently being 
+			// examined by the boar:
+			// ---------------------------------------------------------------------
+
+			context.save() ;
+			
+			context.globalAlpha = 0.5;
+			context.fillStyle = "AliceBlue" ; // "MintCream" ; // 
+			context.fillRect(left+(probeCol-1)*dh, Top+(probeRow-1)*dv, 3*dv, 3*dh);
+			context.stroke();	
+			
+			context.strokeStyle = "Sienna" ; // "black" ;
+			
+			// Draw outline	
+			context.beginPath();
+			context.moveTo(left+(probeCol-1)*dh, Top+(probeRow-1)*dv);
+			context.lineTo(left+(probeCol+2)*dh, Top+(probeRow-1)*dv);
+			context.lineTo(left+(probeCol+2)*dh, Top+(probeRow+2)*dv);
+			context.lineTo(left+(probeCol-1)*dh, Top+(probeRow+2)*dv);
+			context.lineTo(left+(probeCol-1)*dh, Top+(probeRow-1)*dv);
+			
+			context.stroke();	
+			context.globalAlpha = 1.0;
+			
+		}
+		
+	</script>
+</head>
+
+<body>
+<p><span CLASS="headerlabel" id="pageHeader">Truffle Hunt</span></p>
+
+<form name="statusForm">
+
+<!-- 
+	MAIN FORM ELEMENTS
+	THESE ARE USED FOR PLAYING THE TRUFFLE HUNT GAME	
+-->
+<div id="mainFormElements">
+
+<!-- 
+	CANVAS SHOWING GRID TO BE SEARCHED BY TRUFFLE-SNIFFING BOAR,
+	AND HEADER TO SHOW COLUMN NUMBERS ABOVE GRID:
+-->
+	<div id="cv1" style="position:absolute; top:100px; left:100px">  
+		<canvas id="myCanvas" width="300" height="300">
+			  Your browser does not support HTML5 Canvas.
+		</canvas>
+	</div>
+
+	<div id="gridheader" style="position:absolute; top:70px; left:108px">  
+		<span style="font-family:Verdana; font-size: 20px; letter-spacing:5px; 
+		      white-space:nowrap">A B C D E F G H I J</span>
+	</div>
+	
+<!-- 
+	ROW HEADERS ALONG LEFT MARGIN OF GRID:
+-->
+
+	<div id="gridrownum" style="position:absolute; top:100px; left:75px">
+		<span style="font-family:Verdana; font-size: 20px; line-height: 1.5;">
+		0<br />1<br />2<br />3<br />4<br />5<br />6<br />7<br />8<br />9<br /></span>
+	</div>
+	
+<!-- 
+	3x3 GRIDS TO SHOW PATTERNS BEING TRIED AND ACTIONS BEING APPLIED: 
+-->
+
+	<div id="cv2A" style="position:absolute; top:480px; left:100px">  
+		<canvas id="myCanvas2A" width="91" height="91">
+			  Your browser does not support HTML5 Canvas.
+		</canvas>
+	</div>
+	<div id="cv2B" style="position:absolute; top:480px; left:210px">  
+		<canvas id="myCanvas2B" width="91" height="91">
+			  Your browser does not support HTML5 Canvas.
+		</canvas>
+	</div>
+	
+	<div id="cv2C" style="position:absolute; top:480px; left:310px">  
+		<canvas id="myCanvas2C" width="91" height="91">
+			  Your browser does not support HTML5 Canvas.
+		</canvas>
+	</div>
+
+<!-- 
+	CHECKBOX TO CLICK TO ENABLE "AUTOBOAR" MODE: 
+-->
+
+	<div id="autoControl" style="position:absolute; top:420px; left:100px">  
+		<input type="checkbox" id="boar" onClick="autoBoar=!autoBoar" /> 
+		<b>Auto Boar</b>
+	</div>
+
+<!-- 
+	NUMBER OF MARKERS PLACED BY USER:
+-->
+
+	<div id="markerlabel" style="position:absolute; top:400px; left:450px">  
+		<span style="font-size: 14px; font-weight:bold">Number of Markers:</span>
+	</div>
+	
+	<div id="markerStatus" style="position:absolute; top:399px; left:590px; 
+	font-family:Verdana; font-size: 16px; color: red"> 
+	</div> 
+	
+<!-- 
+	DEVELOPER MODE: ALLOWS ACCESS TO GRID ELEMENTS
+-->
+
+	<div id="devInfoLabel" style="position:absolute; top:620px; left:100px">  
+		<span style="font-size: 14px; font-weight:bold">DEVELOPER MODE:</span>
+	</div>
+	<div id="devInfo" style="position:absolute; top:640px; left:100px">  
+		<textarea id="gridstring" rows="3" cols="50"
+		          style="font-family: 'Lucida Console', 'Courier New', monospace; 
+		                 font-weight:bold;"></textarea>
+	</div>
+    
+    <div style="position: absolute; top: 650px; left: 550px;">
+		<!-- CLICKING THIS BUTTON TRIGGERS A doMouseDown EVENT -->
+        <input type="button" id="runButton" value="Run" 
+        	onClick="DEVELOPER_RUN=true; autoBoar=true;
+        	        document.getElementById('boar').checked=true;">
+    </div>
+    
+</div>  
+
+<!-- 
+	END OF MAIN FORM ELEMENTS
+-->
+
+	
+<!-- 
+	AUTHOR INFO:
+-->
+
+	<div id="credits" style="position: absolute; top: 62px; left: 657px; width: 278px; text-align: right;">  
+		<span style="font-size: 10px;">Truffle Hunt -- 
+		JL Popyack, Nov. 2006. v2.5 Nov. 2024
+		</span>
+	</div>
+
+
+<!-- 
+	TRANSCRIPT OF BOAR'S OBSERVATIONS AND MOVES:
+-->
+
+	<div id="dblabel" style="position:absolute; top:70px; left:450px">  
+		<span style="font-size: 14px; font-weight:bold">Truffle-Sniffing Boar Says:</span>
+	</div>
+    <div>
+      <div id="db" style="position:absolute; top:100px; left:450px">  
+        <textarea id="transcriptArea" rows="20" cols="60"></textarea>
+      </div>
+    </div>
+	
+<!-- 
+	RULE CENTER - THIS IS WHERE THE USER PLACES THE RULES FOR THE BOAR TO FOLLOW:
+-->
+
+	<div id="frmlabel1" style="position:absolute; top:430px; left:450px">  
+		<span style="font-size: 14px; font-weight:bold">Rule Center:</span>
+	</div>
+	<div id="ruleMakerLink" style="position:absolute; top:430px; left:750px"></div>
+
+    <div id="frm1" style="position:absolute; top:450px; left:450px">  
+		<textarea id="ruleList" rows="8" cols="15"
+		          style="font-family: 'Lucida Console', 'Courier New', monospace; 
+		          font-size:14px; font-weight:bold;">????0-???
+?????P???</textarea>
+	</div>
+
+	
+<!-- 
+	ROW AND COLUMN LABELS BESIDE SUBGRID, PATTERN AND ACTION HEaADERS
+-->
+
+ 	<div style="position:absolute; top:485px; left:75px">
+		<span id="subgridrownum" style="font-family:Verdana; font-size: 20px; 
+			  line-height: 1.5;">
+		</span>
+	</div>
+
+	<div style="position:absolute; top:450px; left:110px">  
+		<span id="subgridheader" style="font-family:Verdana; font-size: 20px;
+			  letter-spacing: 5px">
+		</span>
+	</div>
+
+	<div id="patternheader" style="position:absolute; top:450px; left:220px">  
+		<span style="font-size: 14px; font-weight:bold">Pattern:</span>
+	</div>
+
+	<div id="actionheader" style="position:absolute; top:450px; left:340px">  
+		<span style="font-size: 14px; font-weight:bold">Action:</span>
+	</div>
+
+
+<!-- 
+	RULE FORM ELEMENTS
+	THESE ARE USED WHEN IN RULEMAKER MODE:
+-->
+
+<div id="ruleFormElements">
+<style>
+.container {
+	margin: auto;
+	height: 30px;
+	width: 30px;
+	border: 2px solid black;
+	background-color: Gainsboro;
+}
+.cell {
+	margin: auto;
+	line-height: 24px;
+	height: 24px;
+	width: 24px;
+	border: 0px;
+	font-family:Verdana; 
+	font-size: 20px;
+	font-weight: bolder; // bold;
+	text-align: center;
+	background-color: Gainsboro;
+	font-color: DarkBlue;
+}
+.sbg {
+	background-color: DarkSeaGreen;
+	font-color: Yellow;
+}
+</style>
+    
+    <div id="ruleInstructions" style="width:400px; padding:4px; border-style:solid; border-width:thin; background-color:cornsilk";>
+		<p>The possible pattern values are:</p>
+		<ul>
+		  <li> a digit <b><i>0-8</i></b> meaning the specific value 0-8</li>
+		  <li><b><i>N</i></b> means any nonzero digit</li>
+		  <li><b><i>n</i></b> means any digit (i.e., this cell has been explored 
+			and it is empty) </li>
+		  <li><b><i>-</i></b> means blank (unexplored)</li>
+		  <li><b><i>?</i></b> matches any character - 
+		  	including &quot;out of bounds&quot;</li>
+		  <li><b><i>m </i></b>means &quot;MARKED&quot;</li>
+		</ul>
+		<p>At least one of the cells in the pattern should be blank (unexplored), so
+		  that an action may be performed on it.</p>
+		<p>An <i>action</i> contains &quot;<b>?</b>&quot; everywhere
+		  except that in a place corresponding to a blank cell in the pattern, it 
+		  contains either a &quot;<b>P</b>&quot; indicating that the cell may safely 
+		  be probed, or a &quot;<b>M</b>&quot; meaning the cell must be marked. 
+		</p>
+    </div>
+
+	<div class="container sbg" style="position:absolute; top:470px; left:100px;">
+		<input class="cell sbg" type="text" id="SGR00" maxlength="1">	
+	</div>
+	<div class="container sbg" style="position:absolute; top:470px; left:132px;">
+		<input class="cell sbg" type="text" id="SGR01" maxlength="1">	
+	</div>
+	<div class="container sbg" style="position:absolute; top:470px; left:164px;">
+		<input class="cell sbg" type="text" id="SGR02" maxlength="1">	
+	</div>
+	<div class="container sbg" style="position:absolute; top:502px; left:100px;">
+		<input class="cell sbg" type="text" id="SGR10" maxlength="1">	
+	</div>
+	<div class="container sbg" style="position:absolute; top:502px; left:132px;">
+		<input class="cell sbg" type="text" id="SGR11" maxlength="1">	
+	</div>
+	<div class="container sbg" style="position:absolute; top:502px; left:164px;">
+		<input class="cell sbg" type="text" id="SGR12" maxlength="1">	
+	</div>
+	<div class="container sbg" style="position:absolute; top:534px; left:100px;">
+		<input class="cell sbg" type="text" id="SGR20" maxlength="1">	
+	</div>
+	<div class="container sbg" style="position:absolute; top:534px; left:132px;">
+		<input class="cell sbg" type="text" id="SGR21" maxlength="1">	
+	</div>
+	<div class="container sbg" style="position:absolute; top:534px; left:164px;">
+		<input class="cell sbg" type="text" id="SGR22" maxlength="1">	
+	</div>
+
+
+	<div class="container" style="position:absolute; top:470px; left:215px;">
+		<input class="cell" type="text" value="?" id="PAT00" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:470px; left:247px;">
+		<input class="cell" type="text" value="?" id="PAT01" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:470px; left:279px;">
+		<input class="cell" type="text" value="?" id="PAT02" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:502px; left:215px;">
+		<input class="cell" type="text" value="?" id="PAT10" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:502px; left:247px;">
+		<input class="cell" type="text" value="?" id="PAT11" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:502px; left:279px;">
+		<input class="cell" type="text" value="?" id="PAT12" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:534px; left:215px;">
+		<input class="cell" type="text" value="?" id="PAT20" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:534px; left:247px;">
+		<input class="cell" type="text" value="?" id="PAT21" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:534px; left:279px;">
+		<input class="cell" type="text" value="?" id="PAT22" maxlength="1">	
+	</div>
+
+
+	<div class="container" style="position:absolute; top:470px; left:330px;">
+		<input class="cell" type="text" value="?" id="ACT00" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:470px; left:362px;">
+		<input class="cell" type="text" value="?" id="ACT01" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:470px; left:394px;">
+		<input class="cell" type="text" value="?" id="ACT02" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:502px; left:330px;">
+		<input class="cell" type="text" value="?" id="ACT10" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:502px; left:362px;">
+		<input class="cell" type="text" value="?" id="ACT11" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:502px; left:394px;">
+		<input class="cell" type="text" value="?" id="ACT12" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:534px; left:330px;">
+		<input class="cell" type="text" value="?" id="ACT20" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:534px; left:362px;">
+		<input class="cell" type="text" value="?" id="ACT21" maxlength="1">	
+	</div>
+	<div class="container" style="position:absolute; top:534px; left:394px;">
+		<input class="cell" type="text" value="?" id="ACT22" maxlength="1">	
+	</div>
+    
+    <div style="position: absolute; top: 502px; left: 650px;">
+        <input type="button" id="ruleCheckButton" 
+        	   onClick="var subgrid=makeRule();"value="Check Rule">
+    </div>
+    
+</div>
+
+<!-- 
+	END OF RULE FORM ELEMENTS
+-->
+
+    
+    <div id="soloInstructions" style="position: absolute; top: 430px; left: 75px; 
+    width: 800px; padding:10px; border-style: solid; background-color: cornsilk; ";>
+		<p><em>Welcome to Truffle Hunt</em></p>
+		<p>You are searching for <em>truffles</em> – highly prized subterranean mushrooms 
+		that are buried in the field above, and must be harvested carefully. 
+		You are accompanied by a <em>truffle-sniffing boar</em>, which is remarkable at 
+		locating truffles, but will eat them if it actually gets close enough to them. </p>
+		<p>The field is known to contain 10 truffles. You find truffles by allowing 
+		your boar to probe an unmarked spot in the field (by clicking that spot). 
+		If the spot contains a truffle, the boar will eat it. You don't want that to 
+		happen! 
+		If the spot is empty, the boar's sense of smell is keen enough to tell you how 
+		many truffles are nearby, i.e., in one of its immediate neighbors. 
+		By probing carefully, you should be able to deduce which spots are safe to probe, 
+		and which must contain truffles. 
+		The game ends when you either isolate all 10 truffles (you win), 
+		or accidentally probe a truffle (you lose, because your boar eats the truffle). 
+		You may have failed, but at least your boar will love you.</p>
+        <p>Begin by clicking a cell, which instructs your boar to probe it. 
+        The cell will immediately display either an integer showing the number of 
+        neighboring cells that contain a truffle, or a 
+        red &quot;<strong style="color:red;">X</strong>&quot;, designating 
+        that the boar actually found a truffle and ate it. 
+        When you find a cell you feel certain contains a truffle, 
+        you can <em>right-click</em>&nbsp;on it (or <em>ctrl-click</em> it), 
+        and it will be marked in <strong style="color:red;">red</strong>. </p>
+        <p>Happy hunting!</p>
+        <div>
+          <div id="ftn1"></div>
+      </div>
+    </div>
+
+
+</form>
+<script LANGUAGE="JavaScript" TYPE="text/javascript">
+		//-----------------------------------------------------------------------
+		// Are we in DEVELOPER MODE?  
+		// Look for occurrence of "?dev", i.e.
+		//   https:// .... /TruffleHunt ... .html?dev
+		//-----------------------------------------------------------------------
+			DEVELOPER_MODE = (location.search == "?dev") ;
+
+			document.getElementById("devInfoLabel").style.visibility = 
+				( DEVELOPER_MODE ) ? "visible" : "hidden" ;
+			document.getElementById("devInfo").style.visibility = 
+				( DEVELOPER_MODE ) ? "visible" : "hidden" ;
+			document.getElementById("runButton").style.visibility = 
+				( DEVELOPER_MODE ) ? "visible" : "hidden" ;
+
+			document.getElementById("runButton").addEventListener("click", doMouseDown);
+			
+		//-----------------------------------------------------------------------
+		// Are we in RULEMAKER MODE?  
+		// Look for occurrence of "?rul", i.e.
+		//   https:// .... /TruffleHunt ... .html?rul
+		//-----------------------------------------------------------------------
+			RULEMAKER_MODE = (location.search == "?rul") ;
+
+			document.getElementById("mainFormElements").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "block" ;
+
+			document.getElementById("ruleFormElements").style.display = 
+				( RULEMAKER_MODE ) ? "block" : "none" ;
+
+			var loc = location.href ;
+			loc = loc.replace(/\?\w*/, '') ; // remove ?rul or ?dev
+			var dest = ( RULEMAKER_MODE ) ? loc : loc + "?rul" ;
+			var text = ( RULEMAKER_MODE ) ? "Truffle Hunt" : "Rule Maker" ;
+			
+			document.getElementById("ruleMakerLink").innerHTML = 
+				"<a href=" + dest + ">" + text + "</a>";
+
+			if( RULEMAKER_MODE )
+			{
+				document.getElementById("pageHeader").innerText += " Rule Maker" ;
+				document.getElementById("ruleList").innerText += "" ;
+			}
+
+			
+		//-----------------------------------------------------------------------
+		// Are we in SOLO MODE?  
+		// Look for occurrence of "?solo", i.e.
+		//   https:// .... /TruffleHunt ... .html?solo
+		//-----------------------------------------------------------------------
+			SOLO_MODE = (location.search == "?solo") ;
+			document.getElementById("soloInstructions").style.visibility =  
+				( SOLO_MODE ) ? "visible" : "hidden" ;
+
+			if( SOLO_MODE )
+			{
+				document.getElementById("autoControl").style.visibility = "hidden" ;
+				document.getElementById("frmlabel1").style.visibility = "hidden" ;
+				document.getElementById("frm1").style.visibility = "hidden" ;
+				document.getElementById("ruleMakerLink").style.visibility = "hidden" ;
+				document.getElementById("patternheader").style.visibility = "hidden" ;
+				document.getElementById("actionheader").style.visibility = "hidden" ;
+			}
+			
+
+		var grid = new array2D(GRIDSIZE,GRIDSIZE);  
+		
+		var canvas = document.getElementById("myCanvas");
+		var gridStyle = new CellStyle("DarkSeaGreen","PeachPuff","PeachPuff",
+									  "#F88","DarkBlue","#FFF","#F00") ; 
+	
+		var canvas2A = document.getElementById("myCanvas2A");  // subgrid view
+		var canvas2B = document.getElementById("myCanvas2B");  // pattern
+		var canvas2C = document.getElementById("myCanvas2C");  // action
+		var patternStyle = new CellStyle("Gainsboro","Gainsboro","black",
+										 "#F88","DarkBlue","#FFF","#F00") ; 
+
+//		canvas.addEventListener("mousedown", doMouseDown, false);
+		canvas.addEventListener("mouseup", doMouseDown, false);			
+// 		if( RULEMAKER_MODE )
+// 			canvas2A.addEventListener("mouseup", doMouseDown, false);
+
+		// ---------------------------------------------------------------------
+		// This disables the "right-click context menu" 
+		//   ("save image as...", etc.) inside the canvas
+		// ---------------------------------------------------------------------
+		canvas.oncontextmenu   = function (e) { e.preventDefault(); };
+// 		canvas2A.oncontextmenu = function (e) { e.preventDefault(); };
+		
+
+		var context = canvas.getContext("2d");
+		
+		function finishGame(status,message)
+		{
+			gameOver = true ;
+			var stats = "Markers: " + document.getElementById("markerStatus").innerText ;
+			document.getElementById("gridstring").value += "\n" + status + "\n" + stats ;
+			transcript(message) ;
+		}
+
+		function placeMarker(who, grid, row, col)
+		{
+			// ---------------------------------------------------------------------
+			// Place a marker in the selected cell, indicating that it 
+			// is presumed to contain a truffle.
+			// ---------------------------------------------------------------------
+
+			if( !grid[row][col].visible )
+			{
+			// ---------------------------------------------------------------------
+			// currently is not visible (hasn"t been probed or marked).
+			// so make it visible, and mark it.
+			// ---------------------------------------------------------------------
+				grid[row][col].visible = true ;
+				grid[row][col].marked = true ;
+				transcript(who+" put a marker at " + grid[row][col].name) ;
+			}
+			else if(grid[row][col].marked)
+			{
+			// ---------------------------------------------------------------------
+			// currently is visible (has been probed or marked).
+			// unmark it, and make it not visible.
+			// ---------------------------------------------------------------------
+				grid[row][col].visible = false ;
+				grid[row][col].marked = false ;
+				transcript(who+" removed a marker from " + grid[row][col].name) ;
+			}
+			// ---------------------------------------------------------------------
+			// otherwise is visible and unmarked (has been probed, with number showing).
+			// ignore.
+			// ---------------------------------------------------------------------
+		}
+		
+		function probe(who, grid, row, col)
+		{
+			// ---------------------------------------------------------------------
+			// Probe the selected cell, to determine how many neighbors contain
+			// truffles.
+			// ---------------------------------------------------------------------
+
+			// ---------------------------------------------------------------------
+			// ignore attempt to probe a cell that has already been probed.
+			// ---------------------------------------------------------------------
+			if(grid[row][col].visible)
+				return ;
+			
+			transcript(who + " probed at " + grid[row][col].name) ;  
+			grid[row][col].visible = true ;
+			
+			// ---------------------------------------------------------------------
+			// If the cell that was probed contains a truffle, the boar eats it
+			// and the game ends.
+			// ---------------------------------------------------------------------
+			if(grid[row][col].truffle)
+				finishGame("LOSS","Yummy! I can't believe I ate the whole thing!\nGAME OVER.");
+
+		}
+
+		function drawGrid(canvas,style,top,left,bottom,right,dh,dv)
+		{
+		// ---------------------------------------------------------------------
+		// Draw the grid, with appropriate styling depending on whether it is
+		// the main grid or a pattern/action grid.	
+		// ---------------------------------------------------------------------
+			var context = canvas.getContext("2d");
+			
+			context.lineWidth = GRIDLINE_THICKNESS ;
+			context.strokeStyle = style.lineColor ;
+			
+			// ---------------------------------------------------------------------
+			// Draw horizontal lines	
+			// ---------------------------------------------------------------------
+			for(var v=top; v<bottom; v=v+dv)
+			{
+				context.moveTo(left,v);
+				context.lineTo(right,v);
+			}
+
+			// ---------------------------------------------------------------------
+			// Draw vertical lines	
+			// ---------------------------------------------------------------------
+			for(var h=left; h<right; h=h+dh)
+			{
+				context.moveTo(h,top);
+				context.lineTo(h,bottom);
+			}
+
+			context.stroke();	
+
+			context.strokeStyle = "black" ;
+
+			// Draw outline	
+			context.beginPath();
+			context.moveTo(left+1,top+1);
+			context.lineTo(right-1,top+1);
+			context.lineTo(right-1,bottom-1);
+			context.lineTo(left+1,bottom-1);
+			context.lineTo(left+1,top+1);
+
+			context.stroke();	
+		}
+
+		function checkForWin(canvas,grid)
+		{
+		// ---------------------------------------------------------------------
+		// Count markers and correctly marked cells to check for Win.
+		// ---------------------------------------------------------------------
+			var correctlyMarked = 0 ;
+			var numMarkers = 0 ;   // Number of markers that have been placed
+			for(var i=0; i<grid.length; i++)
+				for(var j=0; j<grid[i].length; j++)
+				{					
+					if(grid[i][j].marked)
+					{
+						numMarkers++ ;
+						if(grid[i][j].truffle)
+							correctlyMarked++ ;
+					}
+				}
+			
+			document.getElementById("markerStatus").innerText = numMarkers ;
+			if( DEVELOPER_MODE && correctlyMarked!=numMarkers )
+				document.getElementById("markerStatus").innerText += "; " + correctlyMarked
+					 + " placed correctly." 
+
+			// ---------------------------------------------------------------------
+			// Game ends if all truffles have been correctly marked.
+			// This could be moved to a different routine.
+			// ---------------------------------------------------------------------
+		
+			if(correctlyMarked==numMarkers && numMarkers==MAX_TRUFFLES)
+			{
+				finishGame("WIN","\n\n*** YOU WIN!  ***") ;
+			}
+		
+		}
+		
+		function fillGrid(canvas,style,grid)
+		{
+		// ---------------------------------------------------------------------
+		// Fill the grid with visible values, with appropriate styling depending 
+		// on whether it is the main grid or a pattern/action grid.
+		//
+		// While drawing the grid, check whether all marked cells actually 
+		// contain truffles
+		// ---------------------------------------------------------------------
+			
+			var context = canvas.getContext("2d");
+			
+			context.fillStyle = "white"; 
+			context.fillRect(0, 0, right-left, bottom-Top);
+			context.fillStyle = style.fillColor; 
+			context.fillRect(0, 0, grid[0].length*dh, grid.length*dv);
+			context.font = "bold 20px Verdana";
+			context.fillStyle = style.digitColor ;
+		
+			context.beginPath();
+
+			for(var i=0; i<grid.length; i++)
+				for(var j=0; j<grid[i].length; j++)
+				{
+					var text ;
+	
+					if(grid[i][j].visible)
+					{
+						if(grid[i][j].truffle)
+						{
+							context.fillStyle = style.explodedColor ;
+							text = "X" ;
+						}
+						else
+						{
+							context.fillStyle = style.digitColor ;
+							text = grid[i][j].val ;
+						}
+					
+						var v = Top + dv*i + dv/2 ;
+						var h = left + dh*j + dh/2 ;
+// 						var width = context.measureText(grid[i][j].val).width;
+						var width = context.measureText(text).width;
+						var height = context.measureText("m").width ; //TOTAL KLUDGE - from Bespin;
+						
+						if(text==0)
+						{
+							context.fillStyle = style.emptyColor ;
+							context.fillRect(left + j*dh + GRIDLINE_THICKNESS, 
+											 Top  + i*dv + GRIDLINE_THICKNESS,
+													dh,  
+													dv);
+							context.fillStyle = style.zeroColor ;
+						}
+						context.fillText(text,h-width/2,v + height/2 -3 ) ;
+					}					
+
+					if(grid[i][j].marked)
+					{
+						context.fillStyle = style.markedColor ; 
+						context.fillRect(left+j*dh+GRIDLINE_THICKNESS, 
+										 Top+i*dv+GRIDLINE_THICKNESS,
+										 dh-2*GRIDLINE_THICKNESS, 
+										 dv-2*GRIDLINE_THICKNESS);
+					}
+					
+				}
+		}
+		
+		function doMouseDown(event)
+		{
+		// ---------------------------------------------------------------------
+		// Triggered when mouse event occurs inside canvas,
+		// or when the Run button is clicked in DEVELOPER_MODE.
+		// ---------------------------------------------------------------------
+			if(gameOver)
+				return ;
+			
+			var INVALID_RULES = !( rulesAreValid() );
+			if(INVALID_RULES)
+				return ;
+				
+			if( !(firstClick && DEVELOPER_RUN) )  // i.e., not triggered by "Run" button
+			{						
+				canvas_x = event.pageX ;
+				canvas_y = event.pageY ;
+	
+				var bbox = canvas.getBoundingClientRect();
+				canvas_x -= bbox.left ;
+				canvas_y -= bbox.top ;
+	
+				ROW = Math.floor((canvas_y-Top)/dv) ;  // global
+				COL = Math.floor((canvas_x-left)/dh) ;  // global
+			}			
+			if(firstClick)
+			{
+				doFirstClick(grid,ROW,COL);
+				firstClick = false ;
+			}
+			
+			var leftButton, rightButton;
+			leftButton = 0 ; // if using Internet Explorer, it"s 1  (usingIE ? 1 : 0)
+			rightButton = 2;
+
+			// ---------------------------------------------------------------------
+			// capture right button or ctrl-click to place marker
+			// ---------------------------------------------------------------------
+			if(event.button == rightButton || event.ctrlKey)  
+			{
+				placeMarker("You",grid,ROW,COL) ;
+			}
+			else if(event.button == leftButton)
+			{
+				probe("You",grid,ROW,COL) ;
+			}
+			
+						
+			fillGrid(canvas,gridStyle,grid) ;
+			drawGrid(canvas,gridStyle,Top,left,bottom,right,dh,dv) ;
+			checkForWin(canvas,grid)
+			
+			if(!SOLO_MODE)
+				agentAnalysis(0,grid,ROW,COL) ;
+		}
+		
+		
+	// ---------------------------------------------------------------------
+	// Draw empty grid on screen at start of session
+	// ---------------------------------------------------------------------
+		fillGrid(canvas,gridStyle,grid);
+		drawGrid(canvas,gridStyle,Top,left,bottom,right,dh,dv) ;
+ 
+	</script>
+</body>
+</html>
+
+
+
