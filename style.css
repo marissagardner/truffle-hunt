@@ -1,0 +1,57 @@
+/* ============================================================
+   Truffle Hunt -- style.css
+   Extracted from inline <style> blocks in the original index.html
+   ============================================================ */
+
+	body {
+		margin-left: 30px;
+		margin-top: 5px;
+		padding: 0px;
+		font-family: Arial; 
+		}
+	textarea {
+		font-size: 12px;
+		}
+	.headerlabel {
+			border: 2px solid #F88; 
+			margin: 20px;
+			padding-left: 8px;
+			padding-top: 6px ;
+			padding-bottom: 6px ;
+			font-family: Arial;
+			font-weight: bolder; 
+			color: #FFFFCC; 
+			background-color: darkseagreen;
+			font-size: 24px;
+			text-transform: none;
+			display: table-cell;
+			height: 30px;
+			width: 900px;
+			vertical-align: middle;
+			border-radius: 15px;	
+		}
+
+.container {
+	margin: auto;
+	height: 30px;
+	width: 30px;
+	border: 2px solid black;
+	background-color: Gainsboro;
+}
+.cell {
+	margin: auto;
+	line-height: 24px;
+	height: 24px;
+	width: 24px;
+	border: 0px;
+	font-family:Verdana; 
+	font-size: 20px;
+	font-weight: bolder;
+	text-align: center;
+	background-color: Gainsboro;
+	font-color: DarkBlue;
+}
+.sbg {
+	background-color: DarkSeaGreen;
+	font-color: Yellow;
+}
