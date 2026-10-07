@@ -9,6 +9,68 @@
 		padding: 0px;
 		font-family: Arial; 
 		}
+	
+	/* ---------------- Back-to-home button ---------------- */
+	#backToHomeButton {
+		font-family: Arial;
+		font-size: 14px;
+		font-weight: bold;
+		padding: 6px 14px;
+		border: 2px solid DarkBlue;
+		border-radius: 6px;
+		background-color: PeachPuff;
+		color: DarkBlue;
+		cursor: pointer;
+		flex-shrink: 0;
+		}
+	#backToHomeButton:hover {
+		background-color: DarkBlue;
+		color: white;
+		}
+
+	/* ---------------- Landing page ---------------- */
+	#landingPage {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		background-color: DarkSeaGreen;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		z-index: 1000;
+		}
+	#landingBanner h1 {
+		font-size: 42px;
+		margin: 0 0 12px 0;
+		color: DarkBlue;
+		}
+	#landingBanner p {
+		max-width: 520px;
+		margin: 0 auto 32px auto;
+		font-size: 16px;
+		color: #222;
+		}
+	#landingButtons button {
+		font-family: Arial;
+		font-size: 18px;
+		font-weight: bold;
+		padding: 12px 30px;
+		margin: 0 12px;
+		border: 2px solid DarkBlue;
+		border-radius: 6px;
+		background-color: PeachPuff;
+		color: DarkBlue;
+		cursor: pointer;
+		}
+	#landingButtons button:hover {
+		background-color: DarkBlue;
+		color: white;
+		}
 	textarea {
 		font-size: 12px;
 		}
@@ -19,7 +81,7 @@
 			padding-top: 6px ;
 			padding-bottom: 6px ;
 			font-family: Arial;
-			font-weight: bolder; 
+			font-weight: bolder;
 			color: #FFFFCC; 
 			background-color: darkseagreen;
 			font-size: 24px;

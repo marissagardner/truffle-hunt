@@ -9,8 +9,8 @@
   
    ----------------------------------------------------------------------------
   
-   Name    : Truffle Hunt - Rural CS
-   Version : 2.6
+   Name    : Truffle Hunt
+   Version : 2.5
    Purpose : Provides framework for programming an agent to assist in Truffle
              Hunt.  Truffle Hunt is remarkably similar to Minesweeper (rules
              explained below).
@@ -19,9 +19,9 @@
              to probe the grid without revealing its contents directly.
   
    Author  : Jeffrey L. Popyack
-   Modified By: Marissa Gardner
+   2026 Modifcations : Marissa Gardner
+
    Date    : July 2006
-   Date Modified: July 2026
    Modified: Nov 2006 -- added pattern matching for rules
    Modified: Nov 2008 -- added "Auto Boar" checkbox and time delay
    Modified: Nov 2010 -- added "using System.Collections" (needed for ArrayList)
@@ -51,6 +51,7 @@
                          produces a 0.
                          Added pattern and action display areas beneath grid.
                          Added better rule validation.
+   Modified: Jul 2026 -- Refactored files.
                          
 
    ----------------------------------------------------------------------------
@@ -61,7 +62,29 @@
 </head>
 
 <body>
-<p><span CLASS="headerlabel" id="pageHeader">Truffle Hunt</span></p>
+
+<!-- 
+	LANDING PAGE
+	SHOWN ON FIRST LOAD (UNLESS ?solo IS ON THE URL). LETS THE USER CHOOSE
+	BETWEEN PLAYING MANUALLY (SOLO_MODE) OR LETTING THE RULE-DRIVEN BOAR
+	PLAY (DEFAULT MODE). HIDDEN VIA JS ONCE A CHOICE IS MADE.
+-->
+<div id="landingPage">
+	<div id="landingBanner">
+		<h1>Welcome to Truffle Hunt!</h1>
+		<h3>Uncover safe squares while avoiding hidden truffles</h3>
+		<p> <b>Manual Mode: </b> Just like the classic game Minesweeper <br> <b>Auto-Boar: </b>Teach a virtual boar simple rules and let it hunt on its own</p>
+	</div>
+	<div id="landingButtons">
+		<button type="button" id="manualPlayButton">Manual Play</button>
+		<button type="button" id="autoBoarButton">Auto-Boar</button>
+	</div>
+</div>
+
+<div id="pageHeaderRow" style="display:flex; align-items:center; gap:14px;">
+	<button type="button" id="backToHomeButton" style="display:none;">&larr; Home</button>
+	<p style="margin:0;"><span CLASS="headerlabel" id="pageHeader">Truffle Hunt</span></p>
+</div>
 
 <form name="statusForm">
 
@@ -169,8 +192,8 @@
 -->
 
 	<div id="credits" style="position: absolute; top: 62px; left: 657px; width: 278px; text-align: right;">  
-		<span style="font-size: 10px;">Truffle Hunt -- 
-		JL Popyack, Nov. 2006. v2.5 Nov. 2024
+		<span style="font-size: 10px; white-space: pre-line;"> Truffle Hunt -- JL Popyack, Nov. 2006. v2.5 Nov. 2024
+		Modified by Marissa Gardner Jul. 2026
 		</span>
 	</div>
 
