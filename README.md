@@ -58,3 +58,4 @@ Other modes, reachable by URL parameter (not currently linked from the UI):
 ## Credits
 
 Jeffrey L. Popyack — original design and implementation, 2006–2024.
+Marissa Gardner - refactoring and updates to Auto Boar, 2026
