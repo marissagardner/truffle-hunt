@@ -678,6 +678,114 @@
 			}
 		}
 		
+		function findBoarMove(grid)
+		{
+		// ---------------------------------------------------------------------
+		// Runs the exact same rule search agentAnalysis() used to run inline,
+		// but makes no move -- it only records what it tried, in order, so the
+		// UI can explain the boar's reasoning before acting on it.
+		//
+		// Returns:
+		//   moveFound     : true/false
+		//   row, col      : cell the boar decided to act on (if moveFound)
+		//   pattern       : the (possibly rotated) pattern matrix that matched
+		//   action        : the (possibly rotated) action matrix to apply
+		//   rotationLabel : plain-English description of which orientation matched
+		//   trace         : one entry per rule tried, in priority order:
+		//                    { rule, matched, row, col, rotationLabel }
+		// ---------------------------------------------------------------------
+
+		var numRules = RULES.length/2 ;
+		var patternString = new Array(numRules) ;
+		var actionString  = new Array(numRules) ;
+		var j = 0 ;
+		for(var i=0; i<numRules; i++)
+		{
+			patternString[i] = RULES[j] ; j++ ;
+			actionString[i]  = RULES[j] ; j++ ;
+		}
+
+		var ROTATION_LABELS = [ "its original orientation", "rotated 90° clockwise",
+								"rotated 180°", "rotated 270° clockwise" ] ;
+
+		var trace = [] ;
+		var moveFound = false ;
+		var resultRow, resultCol, resultPattern, resultAction, resultRotationLabel ;
+
+		for (var k = 0; !moveFound && k < patternString.length; k++)
+		{
+			var pat = [ unpack(patternString[k]) ] ;
+			pat[1] = rotateRight(pat[0]) ;
+			pat[2] = rotateRight(pat[1]) ;
+			pat[3] = rotateRight(pat[2]) ;
+
+			var act = [ unpack(actionString[k]) ] ;
+			act[1] = rotateRight(act[0]) ;
+			act[2] = rotateRight(act[1]) ;
+			act[3] = rotateRight(act[2]) ;
+
+			var matchedHere = false ;
+
+			for (var i=0; !matchedHere && i<grid.length; i++)
+			{
+				for (var cc=0; !matchedHere && cc<grid[i].length; cc++)
+				{
+					for (var r=0; !matchedHere && r<4; r++)
+					{
+						if ( matching(grid, i, cc, pat[r]) )
+						{
+							matchedHere = true ;
+							resultRow = i ;
+							resultCol = cc ;
+							resultPattern = pat[r] ;
+							resultAction  = act[r] ;
+							resultRotationLabel = ROTATION_LABELS[r] ;
+						}
+					}
+				}
+			}
+
+			trace.push( { rule: k+1, matched: matchedHere,
+						row: resultRow, col: resultCol,
+						rotationLabel: resultRotationLabel } ) ;
+
+			if (matchedHere)
+				moveFound = true ;
+		}
+
+		return { moveFound: moveFound, row: resultRow, col: resultCol,
+				pattern: resultPattern, action: resultAction,
+				rotationLabel: resultRotationLabel, trace: trace } ;
+		}
+
+		function renderReasoning(result)
+		{
+		// ---------------------------------------------------------------------
+		// Turns a findBoarMove() result into a short, plain-English play-by-play
+		// in the reasoning panel -- this is what makes "the boar moved" into
+		// "here's why the boar moved."
+		// ---------------------------------------------------------------------
+
+			var lines = [] ;
+
+			for (var i=0; i<result.trace.length; i++)
+			{
+				var entry = result.trace[i] ;
+				if (entry.matched)
+					lines.push("Trying Rule " + entry.rule + " against the whole board... "
+							+ "<strong>matched!</strong> Using it " + entry.rotationLabel
+							+ ", centered at " + grid[entry.row][entry.col].name + ".") ;
+				else
+					lines.push("Trying Rule " + entry.rule + " against the whole board... no match.") ;
+			}
+
+			if (!result.moveFound)
+				lines.push("<em>No rule matched anywhere on the board &mdash; "
+						+ "the boar has no safe move to suggest.</em>") ;
+
+			document.getElementById("reasoningPanel").innerHTML = lines.join("<br />") ;
+		}
+
 		function agentAnalysis(moveCount,grid,row,col)
 		{
 		// ---------------------------------------------------------------------
@@ -757,69 +865,83 @@
 			// Error checking for rules is not done here because it has already
 			// been done when the user first clicked a cell in the grid.
 			// ---------------------------------------------------------------------
-			var numRules = RULES.length/2 ; // a rule is defined by 2 lines
+			
+			// var numRules = RULES.length/2 ; // a rule is defined by 2 lines
 		
-			var moveFound;
-			var probeRow, probeCol ;
+			// var moveFound;
+			// var probeRow, probeCol ;
 			
-			var patternString = new Array(numRules) ;
-			var actionString  = new Array(numRules) ;
-			var j = 0 ;
-			for(var i=0; i<numRules; i++)
-			{
-				patternString[i] = RULES[j] ;
-				j++ ;
-				actionString[i] = RULES[j] ;
-				j++ ;
-			}
+			// var patternString = new Array(numRules) ;
+			// var actionString  = new Array(numRules) ;
+			// var j = 0 ;
+			// for(var i=0; i<numRules; i++)
+			// {
+			// 	patternString[i] = RULES[j] ;
+			// 	j++ ;
+			// 	actionString[i] = RULES[j] ;
+			// 	j++ ;
+			// }
 			
-			moveFound = false;
+			// moveFound = false;
 			
-			for (var k = 0; !moveFound && k < patternString.length; k++)
-			{
-				var pat1, pat1R, pat2R, pat3R ;
-				var act1, act1R, act1R, act3R ;
-				pat1 = unpack(patternString[k]) ;
-				pat1R = rotateRight(pat1) ;
-				pat2R = rotateRight(pat1R) ;
-				pat3R = rotateRight(pat2R) ;
-				act1 = unpack(actionString[k]) ;
-				act1R = rotateRight(act1) ;
-				act2R = rotateRight(act1R) ;
-				act3R = rotateRight(act2R) ;
+			// for (var k = 0; !moveFound && k < patternString.length; k++)
+			// {
+			// 	var pat1, pat1R, pat2R, pat3R ;
+			// 	var act1, act1R, act1R, act3R ;
+			// 	pat1 = unpack(patternString[k]) ;
+			// 	pat1R = rotateRight(pat1) ;
+			// 	pat2R = rotateRight(pat1R) ;
+			// 	pat3R = rotateRight(pat2R) ;
+			// 	act1 = unpack(actionString[k]) ;
+			// 	act1R = rotateRight(act1) ;
+			// 	act2R = rotateRight(act1R) ;
+			// 	act3R = rotateRight(act2R) ;
 
-				for (var i = 0; !moveFound && i < grid.length ; i++)
-				{
-					for (var j = 0; !moveFound && j < grid[i].length; j++)
-					{
-						if (matching(grid,i, j, pat1))
-						{
-							apply(grid, i, j, pat1, act1);
-							moveFound = true;
-						}
-						else if (matching(grid, i, j, pat1R))
-						{
-							apply(grid, i, j, pat1R, act1R);
-							moveFound = true;
-						}
-						else if (matching(grid,i, j, pat2R))
-						{
-							apply(grid, i, j, pat2R, act2R);
-							moveFound = true;
-						}
-						else if (matching(grid,i, j, pat3R))
-						{
-							apply(grid, i, j, pat3R, act3R);
-							moveFound = true;
-						}
-						if(moveFound)
-						{
-							probeRow = i ;
-							probeCol = j ;
-						}
-					}
-				}
-			}  
+			// 	for (var i = 0; !moveFound && i < grid.length ; i++)
+			// 	{
+			// 		for (var j = 0; !moveFound && j < grid[i].length; j++)
+			// 		{
+			// 			if (matching(grid,i, j, pat1))
+			// 			{
+			// 				apply(grid, i, j, pat1, act1);
+			// 				moveFound = true;
+			// 			}
+			// 			else if (matching(grid, i, j, pat1R))
+			// 			{
+			// 				apply(grid, i, j, pat1R, act1R);
+			// 				moveFound = true;
+			// 			}
+			// 			else if (matching(grid,i, j, pat2R))
+			// 			{
+			// 				apply(grid, i, j, pat2R, act2R);
+			// 				moveFound = true;
+			// 			}
+			// 			else if (matching(grid,i, j, pat3R))
+			// 			{
+			// 				apply(grid, i, j, pat3R, act3R);
+			// 				moveFound = true;
+			// 			}
+			// 			if(moveFound)
+			// 			{
+			// 				probeRow = i ;
+			// 				probeCol = j ;
+			// 			}
+			// 		}
+			// 	}
+			// }  
+			
+			var result = findBoarMove(grid) ;
+			renderReasoning(result) ;
+
+			var moveFound = result.moveFound ;
+			var probeRow, probeCol ;
+
+			if (moveFound)
+			{
+				probeRow = result.row ;
+				probeCol = result.col ;
+				apply(grid, probeRow, probeCol, result.pattern, result.action) ;
+			}
 			
 			if (moveFound && !gameOver)  
 			{
