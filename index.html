@@ -220,11 +220,15 @@
 	</div>
 	<div id="ruleMakerLink" style="position:absolute; top:430px; left:750px"></div>
 
-    <div id="frm1" style="position:absolute; top:450px; left:450px">  
-		<textarea id="ruleList" rows="8" cols="15"
-		          style="font-family: 'Lucida Console', 'Courier New', monospace; 
-		          font-size:14px; font-weight:bold;">????0-???
+	<div id="frm1" style="position:absolute; top:450px; left:450px">  
+	<textarea id="ruleList" rows="8" cols="15" oninput="renderRuleBadges()"
+				style="font-family: 'Lucida Console', 'Courier New', monospace; 
+				font-size:14px; font-weight:bold;">????0-???
 ?????P???</textarea>
+	</div>
+
+	<div id="ruleBadges" style="position:absolute; top:450px; left:650px;
+	     width:150px; display:flex; flex-direction:column; gap:4px;">
 	</div>
 
 <!-- 

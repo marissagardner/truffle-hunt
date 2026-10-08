@@ -173,6 +173,7 @@
 			document.getElementById("autoControl").style.visibility = "hidden" ;
 			document.getElementById("frmlabel1").style.visibility = "hidden" ;
 			document.getElementById("frm1").style.visibility = "hidden" ;
+			document.getElementById("ruleBadges").style.visibility = "hidden" ;
 			document.getElementById("ruleMakerLink").style.visibility = "hidden" ;
 			document.getElementById("patternheader").style.visibility = "hidden" ;
 			document.getElementById("actionheader").style.visibility = "hidden" ;
@@ -786,6 +787,32 @@
 			document.getElementById("reasoningPanel").innerHTML = lines.join("<br />") ;
 		}
 
+		function renderRuleBadges(matchedRuleNumber)
+		{
+		// ---------------------------------------------------------------------
+		// Reads the Rule Center textarea and draws one numbered badge per rule,
+		// in priority order -- so "which rule is this" and "what order do they
+		// fire in" are visible at a glance instead of implied by line position
+		// in a textarea. Pass the rule number that just fired to highlight it
+		// (e.g. from findBoarMove()'s trace); omit it to just refresh the list.
+		// ---------------------------------------------------------------------
+
+			var rulesText = document.getElementById("ruleList").value.trim() ;
+			var ruleLines = ( rulesText === "" ) ? [] : rulesText.split("\n") ;
+			var numRules = Math.floor( ruleLines.length / 2 ) ;
+
+			var container = document.getElementById("ruleBadges") ;
+			container.innerHTML = "" ;
+
+			for (var i=1; i<=numRules; i++)
+			{
+				var badge = document.createElement("span") ;
+				badge.className = "ruleBadge" + ( i === matchedRuleNumber ? " ruleBadgeMatched" : "" ) ;
+				badge.innerText = "Rule " + i ;
+				container.appendChild(badge) ;
+			}
+		}
+
 		function agentAnalysis(moveCount,grid,row,col)
 		{
 		// ---------------------------------------------------------------------
@@ -865,73 +892,10 @@
 			// Error checking for rules is not done here because it has already
 			// been done when the user first clicked a cell in the grid.
 			// ---------------------------------------------------------------------
-			
-			// var numRules = RULES.length/2 ; // a rule is defined by 2 lines
-		
-			// var moveFound;
-			// var probeRow, probeCol ;
-			
-			// var patternString = new Array(numRules) ;
-			// var actionString  = new Array(numRules) ;
-			// var j = 0 ;
-			// for(var i=0; i<numRules; i++)
-			// {
-			// 	patternString[i] = RULES[j] ;
-			// 	j++ ;
-			// 	actionString[i] = RULES[j] ;
-			// 	j++ ;
-			// }
-			
-			// moveFound = false;
-			
-			// for (var k = 0; !moveFound && k < patternString.length; k++)
-			// {
-			// 	var pat1, pat1R, pat2R, pat3R ;
-			// 	var act1, act1R, act1R, act3R ;
-			// 	pat1 = unpack(patternString[k]) ;
-			// 	pat1R = rotateRight(pat1) ;
-			// 	pat2R = rotateRight(pat1R) ;
-			// 	pat3R = rotateRight(pat2R) ;
-			// 	act1 = unpack(actionString[k]) ;
-			// 	act1R = rotateRight(act1) ;
-			// 	act2R = rotateRight(act1R) ;
-			// 	act3R = rotateRight(act2R) ;
 
-			// 	for (var i = 0; !moveFound && i < grid.length ; i++)
-			// 	{
-			// 		for (var j = 0; !moveFound && j < grid[i].length; j++)
-			// 		{
-			// 			if (matching(grid,i, j, pat1))
-			// 			{
-			// 				apply(grid, i, j, pat1, act1);
-			// 				moveFound = true;
-			// 			}
-			// 			else if (matching(grid, i, j, pat1R))
-			// 			{
-			// 				apply(grid, i, j, pat1R, act1R);
-			// 				moveFound = true;
-			// 			}
-			// 			else if (matching(grid,i, j, pat2R))
-			// 			{
-			// 				apply(grid, i, j, pat2R, act2R);
-			// 				moveFound = true;
-			// 			}
-			// 			else if (matching(grid,i, j, pat3R))
-			// 			{
-			// 				apply(grid, i, j, pat3R, act3R);
-			// 				moveFound = true;
-			// 			}
-			// 			if(moveFound)
-			// 			{
-			// 				probeRow = i ;
-			// 				probeCol = j ;
-			// 			}
-			// 		}
-			// 	}
-			// }  
-			
 			var result = findBoarMove(grid) ;
 			renderReasoning(result) ;
+			renderRuleBadges( result.moveFound ? result.trace[result.trace.length-1].rule : null ) ;
 
 			var moveFound = result.moveFound ;
 			var probeRow, probeCol ;
@@ -1028,7 +992,7 @@
 
 			var loc = location.href ;
 			loc = loc.replace(/\?\w*/, '') ; // remove ?rul or ?dev
-			var dest = ( RULEMAKER_MODE ) ? loc : loc + "?rul" ;
+			var dest = ( RULEMAKER_MODE ) ? loc + "?auto" : loc + "?rul" ;
 			var text = ( RULEMAKER_MODE ) ? "Truffle Hunt" : "Rule Maker" ;
 			
 			document.getElementById("ruleMakerLink").innerHTML = 
@@ -1077,6 +1041,7 @@
 			else
 			{
 				document.getElementById("landingPage").style.display = "none" ;
+				document.getElementById("backToHomeButton").style.display = "inline-block" ;
 			}
 
 		//-----------------------------------------------------------------------
@@ -1397,3 +1362,4 @@
 	// ---------------------------------------------------------------------
 		fillGrid(canvas,gridStyle,grid);
 		drawGrid(canvas,gridStyle,Top,left,bottom,right,dh,dv) ;
+		renderRuleBadges() ;

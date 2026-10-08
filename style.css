@@ -71,6 +71,25 @@
 		background-color: DarkBlue;
 		color: white;
 		}
+
+	.ruleBadge {
+		display: inline-block;
+		font-family: Arial;
+		font-size: 12px;
+		font-weight: bold;
+		padding: 3px 10px;
+		border: 2px solid DarkBlue;
+		border-radius: 12px;
+		background-color: cornsilk;
+		color: DarkBlue;
+		text-align: center;
+	}
+
+	.ruleBadge.ruleBadgeMatched {
+		background-color: DarkSeaGreen;
+		color: white;
+	}
+	
 	textarea {
 		font-size: 12px;
 		}
