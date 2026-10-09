@@ -144,7 +144,9 @@
 -->
 
 	<div id="autoControl" style="position:absolute; top:420px; left:100px">  
-		<input type="checkbox" id="boar" onClick="autoBoar=!autoBoar" /> 
+		<button type="button" id="nextMoveButton" disabled>Next Move &#9654;</button>
+		&nbsp;&nbsp;
+		<input type="checkbox" id="boar" onClick="autoBoar=!autoBoar; if(autoBoar) takeBoarTurn();" /> 
 		<b>Auto Boar</b>
 	</div>
 

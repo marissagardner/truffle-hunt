@@ -89,7 +89,27 @@
 		background-color: DarkSeaGreen;
 		color: white;
 	}
-	
+	#nextMoveButton {
+	font-family: Arial;
+	font-size: 14px;
+	font-weight: bold;
+	padding: 6px 14px;
+	border: 2px solid DarkBlue;
+	border-radius: 6px;
+	background-color: PeachPuff;
+	color: DarkBlue;
+	cursor: pointer;
+	}
+	#nextMoveButton:disabled {
+		background-color: Gainsboro;
+		border-color: Gray;
+		color: Gray;
+		cursor: default;
+	}
+	#nextMoveButton:not(:disabled):hover {
+		background-color: DarkBlue;
+		color: white;
+	}
 	textarea {
 		font-size: 12px;
 		}

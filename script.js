@@ -31,6 +31,7 @@
 			var firstClick=true ;
 			var gameOver = false ;
 			var autoBoar = false ;
+			var AUTO_BOAR_DELAY_MS = 1800 ;
 			
 		// =====================================================================
 		// ------------------------- CLASS DEFINITION -------------------------- 
@@ -187,6 +188,7 @@
 		// first click is guaranteed to return a 0.
 		// ---------------------------------------------------------------------
 			document.getElementById("runButton").disabled = true ;
+			document.getElementById("nextMoveButton").disabled = false ;
 
 			var str = document.getElementById("gridstring").value ;
 			// ---------------------------------------------------------------------
@@ -813,147 +815,82 @@
 			}
 		}
 
-		function agentAnalysis(moveCount,grid,row,col)
+		function takeBoarTurn()
 		{
 		// ---------------------------------------------------------------------
-		// This routine provides an agent's analysis of the current board,
-		// and makes a move if one is acceptable.
-		//
-		// It should not be possible for this routine to be called if there
-		// are errors in the rule list.
-		//
-		// The contents of grid[i][j] contain the visible grid display,
-		// Each cell will contain one of the following values:
-		//   -1 if it has not been probed
-		//    n (a non-negative number) if it has been probed and found to
-		//      have n neighbors that are truffles.
-		//   Furthermore, 
-		//      grid[i][j].marked  will be true if the user has 
-		//                         placed a marker on the cell.
-		//      grid[i][j].visible will be true if the user has either
-		//                         probed or marked the cell.
-		//      grid[i][j].truffle will be true if there is actually a 
-		//                         truffle in the cell (unknown to user) 
+		// Performs exactly one boar move: search for a matching rule, narrate
+		// the search in the reasoning panel, apply the move if one was found,
+		// and redraw the board. This is the single engine behind both the
+		// "Next Move" button and Auto Boar -- Auto Boar just calls this
+		// repeatedly on a timer instead of waiting for a click.
 		// ---------------------------------------------------------------------
-		
-			// ---------------------------------------------------------------------
-			// The position of the boar has temporarily been drawn on the grid.
-			// Restore the grid (i.e., remove the mark showing the boar's position.)
-			// ---------------------------------------------------------------------
 
-			var context = canvas.getContext("2d");
-			context.restore() ;
-
-			if(gameOver) 
+			if (gameOver)
 				return ;
-			
-			if(moveCount==0)  
-			{
-				// ---------------------------------------------------------------------
-				// This check ensures that autoBoar does not keep printing
-				// the same message.
-				// ---------------------------------------------------------------------
-		
-				if(grid[row][col].marked)
-					transcript("Ooohh... you marked " + grid[row][col].name
-					          + "!  Can I try it?") ;
-					          
-				// ---------------------------------------------------------------------
-				// If not visible, marker has just been removed
-				// ---------------------------------------------------------------------
-				else if(grid[row][col].visible)
-					transcript("Ooohh... you probed " + grid[row][col].name
-					          +" and it is near " 
-					          + grid[row][col].val
-					          + " Truffle"
-					          + (grid[row][col].val==1 ? "" : "s")
-					          + "!") ;
-			}
-		
-			// ---------------------------------------------------------------------
-			//  Given a pattern "abcdefghi" which corresponds to the 3x3 matrix
-			//    a b c
-			//    d e f
-			//    g h i
-			//  The possible values are:
-			//    0-8 meaning the specific value 0-8
-			//    N   means any nonzero digit
-			//    n   means any digit, including 0 (i.e. the cell is empty)
-			//    -   means blank (unexplored)
-			//    ?   matches any character - including "out of bounds"
-			//    m   means "MARKED"
-			//  
-			//    ?   appears in the "action pattern", meaning leave cell as is
-			//    P   appears in the "action pattern", showing which cell to probe
-			//    M   appears in the "action pattern", showing which cell to mark
-			// ---------------------------------------------------------------------
-			
-			// ---------------------------------------------------------------------
-			// Error checking for rules is not done here because it has already
-			// been done when the user first clicked a cell in the grid.
-			// ---------------------------------------------------------------------
+
+			// Board clicks no longer trigger this directly, so -- unlike the old
+			// agentAnalysis() -- rule validity isn't guaranteed to have been
+			// checked already. Check it here instead.
+			if ( !(rulesAreValid()) )
+				return ;
+
+			var context = canvas.getContext("2d") ;
+			context.restore() ;
 
 			var result = findBoarMove(grid) ;
 			renderReasoning(result) ;
 			renderRuleBadges( result.moveFound ? result.trace[result.trace.length-1].rule : null ) ;
 
-			var moveFound = result.moveFound ;
-			var probeRow, probeCol ;
-
-			if (moveFound)
+			if (result.moveFound)
 			{
-				probeRow = result.row ;
-				probeCol = result.col ;
-				apply(grid, probeRow, probeCol, result.pattern, result.action) ;
+				apply(grid, result.row, result.col, result.pattern, result.action) ;
 			}
-			
-			if (moveFound && !gameOver)  
+			else
 			{
-				moveCount++;
-				if(autoBoar)
-					setTimeout("agentAnalysis("+moveCount+",grid,"
-					        + probeRow + "," + probeCol + ")", 250) ;
-			}
-			else if (!gameOver)  
-			{
-				transcript("Your guess is as good as mine!\n");
+				transcript("Your guess is as good as mine!\n") ;
 				var stats = "Markers: " + document.getElementById("markerStatus").innerText ;
 				document.getElementById("gridstring").value += "\nSTOPPED" + "\n" + stats ;
 			}
 
-			// ---------------------------------------------------------------------
-			// Now that a move has been applied, update the grid:
-			// ---------------------------------------------------------------------
-
-			fillGrid(canvas,gridStyle,grid);  
+			fillGrid(canvas,gridStyle,grid) ;
 			drawGrid(canvas,gridStyle,Top,left,bottom,right,dh,dv) ;
-			checkForWin(canvas,grid)
+			checkForWin(canvas,grid) ;
 
-			// ---------------------------------------------------------------------
-			// Draw a 3x3 square on the grid showing position currently being 
-			// examined by the boar:
-			// ---------------------------------------------------------------------
+			if (result.moveFound)
+			{
+				// ---------------------------------------------------------------------
+				// Draw a 3x3 square on the grid showing the position the boar
+				// just examined.
+				// ---------------------------------------------------------------------
+				context.save() ;
 
-			context.save() ;
-			
-			context.globalAlpha = 0.5;
-			context.fillStyle = "AliceBlue" ; // "MintCream" ; // 
-			context.fillRect(left+(probeCol-1)*dh, Top+(probeRow-1)*dv, 3*dv, 3*dh);
-			context.stroke();	
-			
-			context.strokeStyle = "Sienna" ; // "black" ;
-			
-			// Draw outline	
-			context.beginPath();
-			context.moveTo(left+(probeCol-1)*dh, Top+(probeRow-1)*dv);
-			context.lineTo(left+(probeCol+2)*dh, Top+(probeRow-1)*dv);
-			context.lineTo(left+(probeCol+2)*dh, Top+(probeRow+2)*dv);
-			context.lineTo(left+(probeCol-1)*dh, Top+(probeRow+2)*dv);
-			context.lineTo(left+(probeCol-1)*dh, Top+(probeRow-1)*dv);
-			
-			context.stroke();	
-			context.globalAlpha = 1.0;
-			
+				context.globalAlpha = 0.5 ;
+				context.fillStyle = "AliceBlue" ;
+				context.fillRect(left+(result.col-1)*dh, Top+(result.row-1)*dv, 3*dv, 3*dh) ;
+				context.stroke() ;
+
+				context.strokeStyle = "Sienna" ;
+				context.beginPath() ;
+				context.moveTo(left+(result.col-1)*dh, Top+(result.row-1)*dv) ;
+				context.lineTo(left+(result.col+2)*dh, Top+(result.row-1)*dv) ;
+				context.lineTo(left+(result.col+2)*dh, Top+(result.row+2)*dv) ;
+				context.lineTo(left+(result.col-1)*dh, Top+(result.row+2)*dv) ;
+				context.lineTo(left+(result.col-1)*dh, Top+(result.row-1)*dv) ;
+				context.stroke() ;
+				context.globalAlpha = 1.0 ;
+			}
+
+			if (result.moveFound && !gameOver && autoBoar)
+				scheduleNextBoarTurn() ;
+		}
+
+		function scheduleNextBoarTurn()
+		{
+		// ---------------------------------------------------------------------
+		// Auto Boar's "keep going on its own" behavior -- same single-move
+		// function a human uses via "Next Move", just re-triggered on a timer.
+		// ---------------------------------------------------------------------
+			setTimeout(takeBoarTurn, AUTO_BOAR_DELAY_MS) ;
 		}
 		
 
@@ -1055,6 +992,14 @@
 				location.href = location.pathname ;
 			}) ;	
 
+		//-----------------------------------------------------------------------
+		// "Next Move" button: performs exactly one boar turn on demand.
+		// Disabled until the first click has placed the truffles (see
+		// doFirstClick()).
+		//-----------------------------------------------------------------------
+			document.getElementById("nextMoveButton").addEventListener("click", takeBoarTurn) ;
+
+			
 		var grid = new array2D(GRIDSIZE,GRIDSIZE);  
 		
 		var canvas = document.getElementById("myCanvas");
@@ -1352,8 +1297,24 @@
 			drawGrid(canvas,gridStyle,Top,left,bottom,right,dh,dv) ;
 			checkForWin(canvas,grid)
 			
+			// ---------------------------------------------------------------------
+			// The boar no longer moves automatically on every click -- that's now
+			// "Next Move" / Auto Boar's job (see takeBoarTurn()). It still reacts
+			// with a comment on what you just did, though.
+			// ---------------------------------------------------------------------
 			if(!SOLO_MODE)
-				agentAnalysis(0,grid,ROW,COL) ;
+			{
+				if(grid[ROW][COL].marked)
+					transcript("Ooohh... you marked " + grid[ROW][COL].name
+								+ "!  Can I try it?") ;
+				else if(grid[ROW][COL].visible)
+					transcript("Ooohh... you probed " + grid[ROW][COL].name
+								+" and it is near " 
+								+ grid[ROW][COL].val
+								+ " Truffle"
+								+ (grid[ROW][COL].val==1 ? "" : "s")
+								+ "!") ;
+			}
 		}
 		
 		
