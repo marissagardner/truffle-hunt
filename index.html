@@ -261,6 +261,10 @@
 		</span>
 	</div>
 
+	<div id="sampleBoardHeader" style="position:absolute; top:450px; left:100px">  
+		<span style="font-size: 14px; font-weight:bold">Sample Board:</span>
+	</div>
+
 	<div id="patternheader" style="position:absolute; top:450px; left:220px">  
 		<span style="font-size: 14px; font-weight:bold">Pattern:</span>
 	</div>
@@ -277,7 +281,19 @@
 
 <div id="ruleFormElements">
     
-    <div id="ruleInstructions" style="width:400px; padding:4px; border-style:solid; border-width:thin; background-color:cornsilk";>
+    <div id="ruleInstructions" style="position:absolute; top:70px; left:75px;
+         width:360px; max-height:340px; overflow-y:auto; padding:4px;
+         border-style:solid; border-width:thin; background-color:cornsilk;">
+
+		<p><strong>This is a practice area, separate from your real game.</strong>
+		   Fill in the <strong>Sample Board</strong> below with pretend values
+		   (standing in for what a real board might look like), build a
+		   <strong>Pattern</strong> to test against it, and the <strong>Action</strong>
+		   to take if it matches. Click <strong>Check Rule</strong> to see whether
+		   your Pattern matches the Sample Board, and what your Action would do.
+		   Nothing here changes the real game &mdash; once you're happy with a rule,
+		   you'll need to copy it into the Rule Center yourself.</p>
+		<hr>
 		<p>The possible pattern values are:</p>
 		<ul>
 		  <li> a digit <b><i>0-8</i></b> meaning the specific value 0-8</li>
@@ -297,6 +313,8 @@
 		  be probed, or a &quot;<b>M</b>&quot; meaning the cell must be marked. 
 		</p>
     </div>
+
+	
 
 	<div class="container sbg" style="position:absolute; top:470px; left:100px;">
 		<input class="cell sbg" type="text" id="SGR00" maxlength="1">	
