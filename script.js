@@ -150,15 +150,37 @@
 			return count ;
 		}
 
-		function transcript(message)
+				function transcript(message)
 		{
 		// ---------------------------------------------------------------------
-		// Add a message to the transcript ("Truffle-Sniffing Boar Says") area.
+		// Add a message to the transcript ("Truffle-Sniffing Boar Says") area
+		// during gameplay. In Rule Maker mode, route the same messages to the
+		// compact inline result banner next to "Check Rule" instead.
 		// ---------------------------------------------------------------------
 			
+			if( RULEMAKER_MODE )
+			{
+				showRuleCheckStatus(message) ;
+				return ;
+			}
+
 			var theForm = document.getElementById("transcriptArea") ;
 			theForm.value += message + "\n" ;
 			theForm.scrollTop = theForm.scrollHeight ;
+		}
+
+		function showRuleCheckStatus(message)
+		{
+		// ---------------------------------------------------------------------
+		// Shows a single Check Rule result as a compact green/red banner,
+		// replacing the old big transcript box in Rule Maker mode.
+		// ---------------------------------------------------------------------
+
+			var box = document.getElementById("ruleCheckStatus") ;
+			var isError = ( message.indexOf("ERROR") == 0 || message.indexOf("does not match") >= 0 ) ;
+
+			box.innerText = message ;
+			box.className = isError ? "error" : "ok" ;
 		}
 		
 		function enterSoloMode()
@@ -926,6 +948,18 @@
 
 			document.getElementById("ruleFormElements").style.display = 
 				( RULEMAKER_MODE ) ? "block" : "none" ;
+
+			document.getElementById("dblabel").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "block" ;
+
+			document.getElementById("db").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "block" ;
+
+			document.getElementById("reasoningLabel").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "block" ;
+				
+			document.getElementById("reasoningPanel").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "block" ;
 
 			var loc = location.href ;
 			loc = loc.replace(/\?\w*/, '') ; // remove ?rul or ?dev

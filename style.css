@@ -166,3 +166,26 @@
 	background-color: DarkSeaGreen;
 	font-color: Yellow;
 }
+
+/* ---------------- Rule Maker: compact Check Rule result banner ---------------- */
+#ruleCheckStatus {
+	display: none;
+	font-family: Arial;
+	font-size: 14px;
+	font-weight: bold;
+	padding: 8px 12px;
+	border-radius: 6px;
+	white-space: pre-line;
+}
+#ruleCheckStatus.ok {
+	display: block;
+	background-color: #DFF2DF;
+	border: 2px solid #3C9A3C;
+	color: #1F5C1F;
+}
+#ruleCheckStatus.error {
+	display: block;
+	background-color: #FBE1E1;
+	border: 2px solid #C94C4C;
+	color: #8A2E2E;
+}
