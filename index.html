@@ -278,9 +278,11 @@
 
 <div id="ruleFormElements">
     
-    <div id="ruleInstructions" style="position:absolute; top:70px; left:75px;
-         width:360px; max-height:340px; overflow-y:auto; padding:4px;
+      <div id="ruleInstructions" style="position:absolute; top:70px; left:75px;
+         width:600px; max-height:340px; overflow-y:auto; padding:4px;
          border-style:solid; border-width:thin; background-color:cornsilk;">
+
+		<p style="margin-top:0;"><strong style="font-size:15px;">Build &amp; Test a Rule</strong></p>
 
 		<p><strong>This is a practice area, separate from your real game.</strong>
 		   Fill in the <strong>Sample Board</strong> below with pretend values
@@ -401,13 +403,18 @@
 		<input class="cell" type="text" value="?" id="ACT22" maxlength="1">	
 	</div>
     
-    <div style="position: absolute; top: 502px; left: 650px;">
+    <div id="rulePreview" style="position:absolute; top:630px; left:100px; width:330px;
+         font-family:'Lucida Console','Courier New',monospace; font-size:13px;">
+    </div>
+
+    <div style="position: absolute; top: 665px; left: 100px;">
         <input type="button" id="ruleCheckButton" 
         	   onClick="var subgrid=makeRule();"value="Check Rule">
     </div>
 
-    <div id="ruleCheckStatus" style="position: absolute; top: 545px; left: 450px; width: 420px;">
+    <div id="ruleCheckStatus" style="position: absolute; top: 700px; left: 100px; width: 420px;">
     </div>
+
     
 </div>
 

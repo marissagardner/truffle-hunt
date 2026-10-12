@@ -702,6 +702,34 @@
 				
 			}
 		}
+
+		function updateRulePreview()
+		{
+		// ---------------------------------------------------------------------
+		// Rule Maker: live-updates the "Your rule so far" preview as the
+		// student types into the Pattern/Action grids, so the connection
+		// between the grid cells and the underlying 9-character rule
+		// strings is visible before clicking Check Rule.
+		// ---------------------------------------------------------------------
+
+			var patternString = "" ;
+			var actionString  = "" ;
+
+			for(var row=0; row<3; row++)
+			{
+				var rowname = String.fromCharCode("0".charCodeAt(0)+row) ;
+				for(var col=0; col<3; col++)
+				{
+					var colname = String.fromCharCode("0".charCodeAt(0)+col) ;
+					patternString += document.getElementById("PAT"+rowname+colname).value || "?" ;
+					actionString  += document.getElementById("ACT"+rowname+colname).value || "?" ;
+				}
+			}
+
+			document.getElementById("rulePreview").innerHTML = 
+				"Your rule so far:<br>Pattern: <b>" + patternString + 
+				"</b>&nbsp;&nbsp;&nbsp;Action: <b>" + actionString + "</b>" ;
+		}
 		
 		function findBoarMove(grid)
 		{
@@ -957,7 +985,7 @@
 
 			document.getElementById("reasoningLabel").style.display = 
 				( RULEMAKER_MODE ) ? "none" : "block" ;
-				
+
 			document.getElementById("reasoningPanel").style.display = 
 				( RULEMAKER_MODE ) ? "none" : "block" ;
 
@@ -973,6 +1001,12 @@
 			{
 				document.getElementById("pageHeader").innerText += " Rule Maker" ;
 				document.getElementById("ruleList").innerText += "" ;
+
+				document.getElementById("ruleFormElements").addEventListener("input", function(e){
+					if( e.target.id.indexOf("PAT")==0 || e.target.id.indexOf("ACT")==0 )
+						updateRulePreview() ;
+				}) ;
+				updateRulePreview() ;
 			}
 
 			
