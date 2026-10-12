@@ -930,7 +930,7 @@
 			var loc = location.href ;
 			loc = loc.replace(/\?\w*/, '') ; // remove ?rul or ?dev
 			var dest = ( RULEMAKER_MODE ) ? loc + "?auto" : loc + "?rul" ;
-			var text = ( RULEMAKER_MODE ) ? "Truffle Hunt" : "Rule Maker" ;
+			var text = ( RULEMAKER_MODE ) ? "Back to Game" : "Rule Maker Mode" ;
 			
 			document.getElementById("ruleMakerLink").innerHTML = 
 				"<a href=" + dest + ">" + text + "</a>";

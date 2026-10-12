@@ -71,7 +71,17 @@
 		background-color: DarkBlue;
 		color: white;
 		}
-
+	#ruleMakerLink {
+		font-family: Arial;
+		font-size: 14px;
+		font-weight: bold;
+		padding: 6px 14px;
+		border: 2px solid DarkBlue;
+		border-radius: 6px;
+		background-color: PeachPuff;
+		color: DarkBlue;
+		cursor: pointer;
+	}
 	.ruleBadge {
 		display: inline-block;
 		font-family: Arial;
