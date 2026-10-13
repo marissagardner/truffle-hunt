@@ -218,19 +218,22 @@
 -->
 
 	<div id="frmlabel1" style="position:absolute; top:430px; left:450px">  
-		<span style="font-size: 14px; font-weight:bold">Rule Center:</span>
+		<span class="ruleCenterLabel">Rule Center</span>
 	</div>
 	<div id="ruleMakerLink" style="position:absolute; top:400px; left:700px"></div>
 
 	<div id="frm1" style="position:absolute; top:450px; left:450px">  
 	<textarea id="ruleList" rows="8" cols="15" oninput="renderRuleBadges()"
+				class="ruleListBox"
 				style="font-family: 'Lucida Console', 'Courier New', monospace; 
 				font-size:14px; font-weight:bold;">????0-???
 ?????P???</textarea>
 	</div>
 
 	<div id="ruleBadges" style="position:absolute; top:450px; left:650px;
-	     width:150px; display:flex; flex-direction:column; gap:4px;">
+	     width:150px; display:flex; flex-direction:column; gap:4px;
+	     padding:6px; background-color:cornsilk; border:1px solid DarkBlue;
+	     border-radius:6px;">
 	</div>
 
 <!-- 

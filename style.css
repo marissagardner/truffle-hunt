@@ -189,3 +189,21 @@
 	border: 2px solid #C94C4C;
 	color: #8A2E2E;
 }
+
+/* ---------------- Rule Center: label + textarea styled as a connected card ---------------- */
+.ruleCenterLabel {
+	font-size: 16px;
+	font-weight: bold;
+	color: white;
+	background-color: DarkBlue;
+	padding: 4px 10px;
+	border-radius: 6px 6px 0 0;
+	display: inline-block;
+}
+.ruleListBox {
+	border: 2px solid DarkBlue;
+	border-radius: 0 6px 6px 6px;
+	background-color: cornsilk;
+	box-shadow: 2px 3px 8px rgba(0,0,0,0.15);
+	padding: 4px;
+}

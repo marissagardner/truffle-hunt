@@ -997,9 +997,12 @@
 
 			document.getElementById("patternheader").style.display = 
 				( RULEMAKER_MODE ) ? "none" : "block" ;
-				
+
 			document.getElementById("actionheader").style.display = 
 				( RULEMAKER_MODE ) ? "none" : "block" ;
+			
+			document.getElementById("ruleBadges").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "flex" ; 
 
 			var loc = location.href ;
 			loc = loc.replace(/\?\w*/, '') ; // remove ?rul or ?dev
