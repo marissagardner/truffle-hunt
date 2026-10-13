@@ -971,58 +971,81 @@
 		//-----------------------------------------------------------------------
 			RULEMAKER_MODE = (location.search == "?rul") ;
 
-			document.getElementById("mainFormElements").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "block" ;
-
-			document.getElementById("ruleFormElements").style.display = 
-				( RULEMAKER_MODE ) ? "block" : "none" ;
-
-			document.getElementById("dblabel").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "block" ;
-
-			document.getElementById("db").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "block" ;
-
-			document.getElementById("reasoningLabel").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "block" ;
-
-			document.getElementById("reasoningPanel").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "block" ;
-
-			document.getElementById("subgridheader").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "inline" ;
-
-			document.getElementById("subgridrownum").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "inline" ;
-
-			document.getElementById("patternheader").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "block" ;
-
-			document.getElementById("actionheader").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "block" ;
-			
-			document.getElementById("ruleBadges").style.display = 
-				( RULEMAKER_MODE ) ? "none" : "flex" ; 
-
-			var loc = location.href ;
-			loc = loc.replace(/\?\w*/, '') ; // remove ?rul or ?dev
-			var dest = ( RULEMAKER_MODE ) ? loc + "?auto" : loc + "?rul" ;
-			var text = ( RULEMAKER_MODE ) ? "Back to Game" : "Rule Maker Mode" ;
-			
-			document.getElementById("ruleMakerLink").innerHTML = 
-				"<a href=" + dest + ">" + text + "</a>";
-
-			if( RULEMAKER_MODE )
+			function applyModeDisplay()
 			{
-				document.getElementById("pageHeader").innerText += " Rule Maker" ;
-				document.getElementById("ruleList").innerText += "" ;
+			// ---------------------------------------------------------------------
+			// Shows/hides everything that differs between gameplay and Rule Maker
+			// mode, based on the current value of RULEMAKER_MODE. Called once at
+			// page load, and again whenever the "Rule Maker Mode"/"Back to Game"
+			// link is clicked -- switching modes no longer reloads the page, so
+			// the in-progress game is never wiped out by a trip to Rule Maker.
+			// ---------------------------------------------------------------------
 
-				document.getElementById("ruleFormElements").addEventListener("input", function(e){
-					if( e.target.id.indexOf("PAT")==0 || e.target.id.indexOf("ACT")==0 )
-						updateRulePreview() ;
+				document.getElementById("mainFormElements").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "block" ;
+
+				document.getElementById("ruleFormElements").style.display = 
+					( RULEMAKER_MODE ) ? "block" : "none" ;
+
+				document.getElementById("dblabel").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "block" ;
+
+				document.getElementById("db").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "block" ;
+
+				document.getElementById("reasoningLabel").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "block" ;
+
+				document.getElementById("reasoningPanel").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "block" ;
+
+				document.getElementById("subgridheader").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "inline" ;
+
+				document.getElementById("subgridrownum").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "inline" ;
+
+				document.getElementById("patternheader").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "block" ;
+
+				document.getElementById("actionheader").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "block" ;
+				
+				document.getElementById("ruleBadges").style.display = 
+					( RULEMAKER_MODE ) ? "none" : "flex" ; 
+
+				var loc = location.href ;
+				loc = loc.replace(/\?\w*/, '') ; // remove ?rul, ?auto, etc.
+				var dest = ( RULEMAKER_MODE ) ? loc + "?auto" : loc + "?rul" ;
+				var text = ( RULEMAKER_MODE ) ? "Back to Game" : "Rule Maker Mode" ;
+				
+				document.getElementById("ruleMakerLink").innerHTML = 
+					"<a href=\"" + dest + "\" id=\"ruleMakerToggle\">" + text + "</a>";
+
+				document.getElementById("ruleMakerToggle").addEventListener("click", function(e)
+				{
+					// Toggle in place instead of navigating -- this is the whole
+					// fix: no page reload means the live game state (grid, markers,
+					// probed cells) is never thrown away.
+					e.preventDefault() ;
+					RULEMAKER_MODE = !RULEMAKER_MODE ;
+					history.pushState(null, "", dest) ;
+					applyModeDisplay() ;
 				}) ;
-				updateRulePreview() ;
+
+				document.getElementById("pageHeader").innerText = 
+					"Truffle Hunt" + ( RULEMAKER_MODE ? " Rule Maker" : "" ) ;
+
+				if( RULEMAKER_MODE )
+					updateRulePreview() ;
 			}
+
+			applyModeDisplay() ;
+
+			document.getElementById("ruleFormElements").addEventListener("input", function(e){
+				if( e.target.id.indexOf("PAT")==0 || e.target.id.indexOf("ACT")==0 )
+					updateRulePreview() ;
+			}) ;
 
 			
 		//-----------------------------------------------------------------------
