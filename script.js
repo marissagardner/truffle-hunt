@@ -991,9 +991,15 @@
 
 			document.getElementById("subgridheader").style.display = 
 				( RULEMAKER_MODE ) ? "none" : "inline" ;
-				
+
 			document.getElementById("subgridrownum").style.display = 
 				( RULEMAKER_MODE ) ? "none" : "inline" ;
+
+			document.getElementById("patternheader").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "block" ;
+				
+			document.getElementById("actionheader").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "block" ;
 
 			var loc = location.href ;
 			loc = loc.replace(/\?\w*/, '') ; // remove ?rul or ?dev
