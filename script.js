@@ -989,6 +989,12 @@
 			document.getElementById("reasoningPanel").style.display = 
 				( RULEMAKER_MODE ) ? "none" : "block" ;
 
+			document.getElementById("subgridheader").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "inline" ;
+				
+			document.getElementById("subgridrownum").style.display = 
+				( RULEMAKER_MODE ) ? "none" : "inline" ;
+
 			var loc = location.href ;
 			loc = loc.replace(/\?\w*/, '') ; // remove ?rul or ?dev
 			var dest = ( RULEMAKER_MODE ) ? loc + "?auto" : loc + "?rul" ;
